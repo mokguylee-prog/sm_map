@@ -28,12 +28,14 @@ export const S = {
   currentGrid: null,
   currentTile: null,
   worldOriginTileFloat: null,
+  lastGoodZoom: null, // 마지막으로 실제 지형이 렌더된 줌(무커버리지 줌에서 복귀용)
 
   // 루프/타이밍
   loadVersion: 0,
   lastFrameTime: 0,
   movementDirty: false,
   zoomReloadTimer: 0,
+  refineTimer: 0,
   animationFrame: 0,
 };
 

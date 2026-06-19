@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Terrain Tile Viewer</title>
+    <title>지형 탐색기</title>
     <link rel="stylesheet" href="./styles.css">
     <script type="importmap">
       {
@@ -21,27 +21,27 @@
         <canvas id="terrainCanvas"></canvas>
         <div class="hud">
           <div>
-            <span class="hud-label">Tile</span>
+            <span class="hud-label">타일</span>
             <strong id="tileHud">-</strong>
           </div>
           <div>
-            <span class="hud-label">Range</span>
+            <span class="hud-label">고도</span>
             <strong id="rangeHud">-</strong>
           </div>
           <div>
-            <span class="hud-label">Resolution</span>
+            <span class="hud-label">해상도</span>
             <strong id="resolutionHud">-</strong>
           </div>
           <div>
-            <span class="hud-label">Coverage</span>
+            <span class="hud-label">수신</span>
             <strong id="coverageHud">-</strong>
           </div>
           <div>
-            <span class="hud-label">Mode</span>
-            <strong>6x6 terrain</strong>
+            <span class="hud-label">모드</span>
+            <strong>3D 지형판</strong>
           </div>
         </div>
-        <div class="compass" aria-label="방위표">
+        <div class="compass" aria-label="방위표 (클릭: 북쪽 수직 뷰)" title="북쪽 정렬 + 수직 내려다보기" role="button" tabindex="0">
           <span class="north">N</span>
           <span class="east">E</span>
           <span class="south">S</span>
@@ -56,17 +56,17 @@
 
       <aside class="panel" aria-label="지형 조작 패널">
         <header class="panel-header">
-          <h1>Terrain Scout</h1>
-          <p>현재 위치 주변 Terrarium 타일을 이어 붙여 3D 지형판으로 탐색합니다.</p>
+          <h1>지형 탐색기</h1>
+          <p>현재 위치 주변 테라리움 타일을 이어 붙여 3D 지형판으로 탐색합니다.</p>
         </header>
 
         <div class="control-grid">
           <label>
             <span>데이터 소스</span>
             <select id="sourceSelect">
-              <option value="aws">AWS Open Terrain Tiles (png)</option>
-              <option value="mapterhorn">Mapterhorn (webp)</option>
-              <option value="custom">Custom URL</option>
+              <option value="aws">AWS 오픈 지형타일 (png)</option>
+              <option value="mapterhorn">맵터호른 (webp)</option>
+              <option value="custom">사용자 지정 URL</option>
             </select>
           </label>
 
@@ -103,8 +103,8 @@
 
         <div class="preset-row" id="presetRow" aria-label="위치 프리셋"></div>
 
-        <section class="download-box" aria-label="bbox 일괄 다운로드">
-          <h2>BBox ZIP 다운로드</h2>
+        <section class="download-box" aria-label="범위 일괄 다운로드">
+          <h2>범위 ZIP 다운로드</h2>
           <div class="control-grid compact">
             <label>
               <span>남</span>
@@ -131,6 +131,14 @@
             <div id="progressBar"></div>
           </div>
           <p id="downloadStatus">대기 중</p>
+        </section>
+
+        <section class="cache-box" aria-label="타일 캐시">
+          <h2>타일 캐시</h2>
+          <div class="button-row">
+            <button id="clearCacheButton" type="button">캐시 비우기</button>
+          </div>
+          <p id="cacheStatus">캐시: -</p>
         </section>
       </aside>
     </main>

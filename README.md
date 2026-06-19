@@ -32,6 +32,14 @@ http://localhost:5173/
 - 고도 타일은 Terrarium RGB 방식으로 디코딩합니다.
 - 지명 라벨은 API 키 없이 동작하도록 `country-labels.js`와 `places.js`에 내장했습니다.
 
+## 타일 캐시 / 오프라인
+
+- 서비스 워커(`sw.js`)가 받은 타일을 브라우저 Cache Storage(`terrain-tiles-v1`)에 저장합니다.
+  새로고침·재방문 시 네트워크 없이 즉시 로드되고, 한 번 본 영역은 **오프라인**에서도 보입니다.
+- bbox ZIP 다운로드를 실행하면 해당 타일들이 캐시에 함께 채워집니다(캐시 워밍).
+- 패널의 **캐시 비우기** 버튼으로 비울 수 있고, 캐시된 타일 수가 표시됩니다.
+- 서비스 워커는 `localhost`/HTTPS에서만 동작합니다(`file://` 불가).
+
 ## 구조 (모듈)
 
 빌드 단계는 없습니다. three / jszip 은 `index.html` 의 importmap이 CDN에서 직접 불러옵니다.

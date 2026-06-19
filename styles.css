@@ -23,7 +23,9 @@ body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* 영문·한글을 한 폰트로 통일(맑은 고딕은 라틴 글리프도 포함). */
+  font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR",
+    system-ui, sans-serif;
 }
 
 button,
@@ -117,6 +119,11 @@ select {
   color: var(--text);
   backdrop-filter: blur(8px);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+
+.compass:hover {
+  border-color: var(--accent-2);
 }
 
 .compass span {
@@ -287,15 +294,22 @@ button:disabled {
   color: #dfe9e5;
 }
 
-.download-box {
+.download-box,
+.cache-box {
   margin-top: 20px;
   padding-top: 18px;
   border-top: 1px solid var(--line);
 }
 
-.download-box h2 {
+.download-box h2,
+.cache-box h2 {
   margin: 0 0 12px;
   font-size: 16px;
+}
+
+.cache-box p {
+  margin: 10px 0 0;
+  opacity: 0.8;
 }
 
 .progress {

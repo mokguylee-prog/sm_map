@@ -82,7 +82,7 @@ export function makeTextSprite(text, color, options = {}) {
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = color;
-  ctx.font = `700 ${options.fontSize ?? 64}px Segoe UI, Malgun Gothic, sans-serif`;
+  ctx.font = `700 ${options.fontSize ?? 64}px "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 2);
@@ -137,15 +137,6 @@ function buildDirectionMarkers() {
     S.directionGroup.add(sprite);
   });
 
-  const arrow = new THREE.ArrowHelper(
-    new THREE.Vector3(0, 0, -1),
-    new THREE.Vector3(0, 80, S.worldSize * 0.42),
-    S.worldSize * 0.24,
-    0xf0c766,
-    130,
-    70,
-  );
-  S.directionGroup.add(arrow);
   S.scene.add(S.directionGroup);
 }
 
@@ -187,4 +178,22 @@ export function updateCompass() {
   direction.normalize();
   const angle = Math.atan2(direction.x, -direction.z);
   els.compassNeedle.style.transform = `translateX(-50%) rotate(${angle}rad)`;
+}
+
+// 나침반 클릭 시: 현재 타깃을 기준으로 북쪽 정렬 + 수직 top-down 뷰로 리셋한다.
+// 거리(줌감)는 유지한다. 정확히 수직이면 방위가 불안정(짐벌락)하므로 미세하게만 +Z로 기울인다.
+export function resetCameraNorthTopDown() {
+  if (!S.camera || !S.controls) return;
+  const target = S.controls.target;
+  const distance = Math.max(1, S.camera.position.distanceTo(target));
+  const phi = 0.0001; // 거의 수직(라디안). 화면상 거의 완전한 top-down.
+  S.camera.up.set(0, 1, 0);
+  // theta=0(+Z 쪽)에서 내려다보면 북쪽(-Z)이 화면 위로 온다.
+  S.camera.position.set(
+    target.x,
+    target.y + distance * Math.cos(phi),
+    target.z + distance * Math.sin(phi),
+  );
+  S.camera.lookAt(target);
+  S.controls.update();
 }

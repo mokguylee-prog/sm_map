@@ -3,10 +3,10 @@ import { WORLD_COUNTRY_LABELS } from "./country-labels.js";
 export const PRESETS = [
   { name: "한국", lat: 36.5, lon: 127.8, zoom: 8 },
   { name: "대전", lat: 36.3504, lon: 127.3845, zoom: 12 },
-  { name: "Seoul", lat: 37.5665, lon: 126.9780, zoom: 12 },
-  { name: "Toulon", lat: 43.1242, lon: 5.9280, zoom: 12 },
-  { name: "Zurich", lat: 47.3769, lon: 8.5417, zoom: 12 },
-  { name: "London", lat: 51.5072, lon: -0.1276, zoom: 12 },
+  { name: "서울", lat: 37.5665, lon: 126.9780, zoom: 12 },
+  { name: "툴롱", lat: 43.1242, lon: 5.9280, zoom: 12 },
+  { name: "취리히", lat: 47.3769, lon: 8.5417, zoom: 12 },
+  { name: "런던", lat: 51.5072, lon: -0.1276, zoom: 12 },
 ];
 
 export const REGIONAL_PLACE_LABELS = [

@@ -2,7 +2,6 @@
 
 import { TILE_SIZE, TILE_CACHE_LIMIT } from "./config.js";
 import { els } from "./dom.js";
-import { S } from "./state.js";
 import { clamp } from "./utils.js";
 
 // P2: URL 키 LRU 캐시. 상한을 넘으면 가장 오래된 항목부터 제거한다.
@@ -77,10 +76,11 @@ export function emptyGrid(samples) {
   };
 }
 
-// 중심 타일 주변 (현재 줌 계획) width x width 타일을 받아 하나의 높이 그리드로 합친다.
-// 패치 폭/샘플/월드크기는 S(상태)에 미리 설정되어 있어야 한다(terrainLoader가 설정).
-export async function loadTerrainPatch(centerTile, z) {
-  const { patchWidth, patchNegative, patchPositive, tileSamples, worldSize } = S;
+// 중심 타일 주변 (plan) width x width 타일을 받아 하나의 높이 그리드로 합친다.
+// plan = { width, negative, positive, samples, worldSize } (patchPlanForZoom 결과).
+// S에 의존하지 않으므로, 호출자(terrainLoader)는 결과를 보고 커밋 여부를 결정할 수 있다.
+export async function loadTerrainPatch(centerTile, z, plan) {
+  const { width: patchWidth, negative: patchNegative, positive: patchPositive, samples: tileSamples, worldSize } = plan;
   const patchTiles = [];
   const limit = 2 ** z;
   for (let oy = -patchNegative; oy <= patchPositive; oy += 1) {

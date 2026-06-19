@@ -19,7 +19,7 @@ import { SOURCES } from "./src/config.js";
 import { els, setStatus } from "./src/dom.js";
 import { S, pressedKeys } from "./src/state.js";
 import { saveState, loadState } from "./src/storage.js";
-import { setupThree, updateCompass } from "./src/sceneSetup.js";
+import { setupThree, updateCompass, resetCameraNorthTopDown } from "./src/sceneSetup.js";
 import { buildPlaceLabels } from "./src/labels.js";
 import { loadTerrain, applyExaggeration } from "./src/terrainLoader.js";
 import {
@@ -32,10 +32,12 @@ import {
   updateMovement,
 } from "./src/movement.js";
 import { fillBboxFromCurrent, downloadBbox } from "./src/download.js";
+import { registerTileCacheWorker, tileCacheCount, clearTileCache } from "./src/tileCachePersist.js";
 import { PRESETS } from "./places.js";
 
 function init() {
   document.body.dataset.appReady = "true";
+  registerTileCacheWorker();
   const saved = loadState();
   const initial = saved ?? { source: "aws", lat: 37.5665, lon: 126.9780, zoom: 12, exaggeration: 2.5 };
 
@@ -52,6 +54,15 @@ function init() {
   bindEvents();
   locateAtStartup(saved);
   animate();
+
+  // 캐시 타일 수 표시를 주기적으로 갱신(저빈도 폴링).
+  updateCacheStatus();
+  window.setInterval(updateCacheStatus, 5000);
+}
+
+async function updateCacheStatus() {
+  const count = await tileCacheCount();
+  els.cacheStatus.textContent = `캐시: ${count.toLocaleString()} 타일`;
 }
 
 function buildPresets() {
@@ -60,10 +71,10 @@ function buildPresets() {
     button.type = "button";
     button.textContent = preset.name;
     button.addEventListener("click", () => {
+      // 위치만 이동하고 현재 줌·카메라 뷰는 유지한다(preset.zoom은 적용하지 않음).
       els.lat.value = preset.lat;
       els.lon.value = preset.lon;
-      els.zoom.value = preset.zoom;
-      loadTerrain({ resetOrigin: true });
+      loadTerrain({ keepCamera: true, resetOrigin: true });
     });
     els.presetRow.append(button);
   });
@@ -76,7 +87,7 @@ function bindEvents() {
     }
     saveState();
   });
-  els.load.addEventListener("click", () => loadTerrain({ resetOrigin: true }));
+  els.load.addEventListener("click", () => loadTerrain({ keepCamera: true, resetOrigin: true }));
   els.locate.addEventListener("click", () => locate(true));
   els.exaggeration.addEventListener("input", () => {
     applyExaggeration();
@@ -84,6 +95,11 @@ function bindEvents() {
   });
   els.fillBbox.addEventListener("click", fillBboxFromCurrent);
   els.download.addEventListener("click", downloadBbox);
+  els.clearCache.addEventListener("click", async () => {
+    await clearTileCache();
+    await updateCacheStatus();
+  });
+  els.compass.addEventListener("click", resetCameraNorthTopDown);
   S.renderer.domElement.addEventListener("pointermove", onPointerMove);
   S.renderer.domElement.addEventListener("pointerdown", onPointerDown);
   S.renderer.domElement.addEventListener("click", onClickMove);
@@ -94,7 +110,7 @@ function bindEvents() {
   [els.lat, els.lon, els.zoom, els.url].forEach((el) => {
     el.addEventListener("change", () => {
       saveState();
-      loadTerrain({ resetOrigin: true });
+      loadTerrain({ keepCamera: true, resetOrigin: true });
     });
   });
 }

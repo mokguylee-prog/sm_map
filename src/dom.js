@@ -8,6 +8,7 @@ export const els = {
   rangeHud: document.querySelector("#rangeHud"),
   resolutionHud: document.querySelector("#resolutionHud"),
   coverageHud: document.querySelector("#coverageHud"),
+  compass: document.querySelector(".compass"),
   compassNeedle: document.querySelector(".compass .needle"),
   source: document.querySelector("#sourceSelect"),
   url: document.querySelector("#urlTemplate"),
@@ -26,6 +27,8 @@ export const els = {
   download: document.querySelector("#downloadButton"),
   progress: document.querySelector("#progressBar"),
   downloadStatus: document.querySelector("#downloadStatus"),
+  clearCache: document.querySelector("#clearCacheButton"),
+  cacheStatus: document.querySelector("#cacheStatus"),
 };
 
 export function setStatus(message) {

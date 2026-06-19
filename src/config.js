@@ -15,25 +15,30 @@ export const PATCH_CENTER_OFFSET = 1;
 // 줌 아웃일수록 더 넓은 패치(타일 수↑)를 낮은 해상도(타일당 샘플↓)로 불러와,
 // 지형판이 화면을 더 넓게 덮어 '여백'(지형판 밖 빈 공간)을 줄인다.
 // 모두 짝수 폭 + negative = width/2 - 1 → 패치 중심 오프셋이 항상 1로 유지된다.
+// samples=초기(빠른) 타일당 샘플, refineSamples=화면이 멈춰 있을 때 올릴 고해상 샘플.
 export function patchPlanForZoom(z) {
-  if (z >= 14) return makePlan(6, 129);
-  if (z >= 12) return makePlan(6, 97);
-  if (z >= 9) return makePlan(8, 65);
-  if (z >= 7) return makePlan(10, 49);
-  if (z >= 5) return makePlan(12, 41);
-  return makePlan(14, 33);
+  if (z >= 14) return makePlan(6, 129, 193);
+  if (z >= 12) return makePlan(6, 97, 161);
+  if (z >= 9) return makePlan(8, 65, 121);
+  if (z >= 7) return makePlan(10, 49, 89);
+  if (z >= 5) return makePlan(12, 41, 61);
+  return makePlan(14, 33, 45);
 }
 
-function makePlan(width, samples) {
+function makePlan(width, samples, refineSamples) {
   const negative = width / 2 - 1;
   return {
     width,
     negative,
     positive: width - negative - 1,
     samples,
+    refineSamples,
     worldSize: width * TILE_WORLD,
   };
 }
+
+// 확대 후 화면이 이 시간(ms)만큼 멈춰 있으면 고해상으로 정밀화한다.
+export const REFINE_DELAY_MS = 900;
 
 export const MOVE_TILES_PER_SECOND = 0.85;
 export const RECENTER_THRESHOLD_TILES = 2.25;

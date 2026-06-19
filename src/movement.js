@@ -75,8 +75,9 @@ export function onClickMove(event) {
   els.lat.value = clamp(next.lat, -85, 85).toFixed(6);
   els.lon.value = next.lon.toFixed(6);
   setStatus(`이동: ${next.lat.toFixed(5)}, ${next.lon.toFixed(5)} (클릭 지점)`);
-  // resetOrigin + 카메라 리프레임으로 클릭 지점을 화면 중앙으로 가져온다.
-  loadTerrain({ resetOrigin: true });
+  // keepCamera: 현재 카메라 뷰(각도·거리)를 그대로 유지한다.
+  // resetOrigin으로 클릭 지점이 패치 중심(=카메라가 보던 지점)에 오므로 뷰 리셋 없이 이동된다.
+  loadTerrain({ keepCamera: true, resetOrigin: true });
 }
 
 export function onKeyDown(event) {
