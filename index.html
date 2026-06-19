@@ -151,7 +151,8 @@
       window.setTimeout(function () {
         var status = document.querySelector("#statusText");
         if (status && document.body.dataset.appReady !== "true") {
-          status.textContent = "앱 모듈이 실행되지 않았습니다. http://localhost:5173/ 로 열어주세요.";
+          status.textContent =
+            "앱 모듈이 실행되지 않았습니다. file:// 이 아니라 로컬 HTTP 서버로 열어주세요 (예: python -m http.server).";
         }
       }, 1800);
     </script>
