@@ -55,6 +55,8 @@ export const REGIONAL_PLACE_LABELS = [
   { name: "울산", lat: 35.5384, lon: 129.3114, minZoom: 7 },
   { name: "부산", lat: 35.1796, lon: 129.0756, minZoom: 6 },
   { name: "창원", lat: 35.2279, lon: 128.6811, minZoom: 7 },
+  { name: "울릉도", lat: 37.4844, lon: 130.9057, minZoom: 8 },
+  { name: "독도", lat: 37.2411, lon: 131.8649, minZoom: 8 },
   { name: "제주", lat: 33.4996, lon: 126.5312, minZoom: 6 },
 ];
 
