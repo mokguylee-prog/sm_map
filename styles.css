@@ -199,18 +199,19 @@ select {
   background:
     linear-gradient(180deg, rgba(66, 197, 138, 0.06), transparent 190px),
     var(--panel);
+  font-size: 12px;
 }
 
 .panel-header h1 {
   margin: 0 0 6px;
-  font-size: 22px;
+  font-size: 17px;
   line-height: 1.2;
 }
 
 .panel-header p {
   margin: 0 0 18px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -234,19 +235,20 @@ label {
   flex-direction: column;
   gap: 6px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 input,
 select {
   width: 100%;
-  min-height: 38px;
+  min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 8px 10px;
+  padding: 7px 9px;
   background: var(--panel-2);
   color: var(--text);
   outline: none;
+  font-size: 12px;
 }
 
 input:focus,
@@ -270,13 +272,14 @@ input[type="range"] {
 }
 
 button {
-  min-height: 38px;
+  min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 8px 12px;
+  padding: 7px 10px;
   background: #293331;
   color: var(--text);
   cursor: pointer;
+  font-size: 12px;
 }
 
 button:hover {
@@ -304,12 +307,13 @@ button:disabled {
 .download-box h2,
 .cache-box h2 {
   margin: 0 0 12px;
-  font-size: 16px;
+  font-size: 13px;
 }
 
 .cache-box p {
   margin: 10px 0 0;
   opacity: 0.8;
+  font-size: 12px;
 }
 
 .progress {
@@ -331,7 +335,7 @@ button:disabled {
   margin: 8px 0 0;
   min-height: 20px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {
