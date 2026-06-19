@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Terrain Tile Viewer</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/",
+          "jszip": "https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm"
+        }
+      }
+    </script>
+  </head>
+  <body data-app-ready="false">
+    <main class="app-shell">
+      <section class="viewport" aria-label="3D 지형 뷰어">
+        <canvas id="terrainCanvas"></canvas>
+        <div class="hud">
+          <div>
+            <span class="hud-label">Tile</span>
+            <strong id="tileHud">-</strong>
+          </div>
+          <div>
+            <span class="hud-label">Range</span>
+            <strong id="rangeHud">-</strong>
+          </div>
+          <div>
+            <span class="hud-label">Resolution</span>
+            <strong id="resolutionHud">-</strong>
+          </div>
+          <div>
+            <span class="hud-label">Coverage</span>
+            <strong id="coverageHud">-</strong>
+          </div>
+          <div>
+            <span class="hud-label">Mode</span>
+            <strong>6x6 terrain</strong>
+          </div>
+        </div>
+        <div class="compass" aria-label="방위표">
+          <span class="north">N</span>
+          <span class="east">E</span>
+          <span class="south">S</span>
+          <span class="west">W</span>
+          <span class="needle"></span>
+        </div>
+        <div class="status-strip">
+          <span id="statusText">초기화 중...</span>
+          <span id="heightReadout">height_m: -</span>
+        </div>
+      </section>
+
+      <aside class="panel" aria-label="지형 조작 패널">
+        <header class="panel-header">
+          <h1>Terrain Scout</h1>
+          <p>현재 위치 주변 Terrarium 타일을 이어 붙여 3D 지형판으로 탐색합니다.</p>
+        </header>
+
+        <div class="control-grid">
+          <label>
+            <span>데이터 소스</span>
+            <select id="sourceSelect">
+              <option value="aws">AWS Open Terrain Tiles (png)</option>
+              <option value="mapterhorn">Mapterhorn (webp)</option>
+              <option value="custom">Custom URL</option>
+            </select>
+          </label>
+
+          <label class="full">
+            <span>URL 템플릿</span>
+            <input id="urlTemplate" type="text" spellcheck="false">
+          </label>
+
+          <label>
+            <span>위도</span>
+            <input id="latInput" type="number" step="0.000001">
+          </label>
+
+          <label>
+            <span>경도</span>
+            <input id="lonInput" type="number" step="0.000001">
+          </label>
+
+          <label>
+            <span>줌</span>
+            <input id="zoomInput" type="number" min="3" max="15" step="1">
+          </label>
+
+          <label>
+            <span>지형 강조</span>
+            <input id="exaggerationInput" type="range" min="0.3" max="8" step="0.1">
+          </label>
+        </div>
+
+        <div class="button-row">
+          <button id="loadButton" type="button">불러오기</button>
+          <button id="locateButton" type="button">현재 위치</button>
+        </div>
+
+        <div class="preset-row" id="presetRow" aria-label="위치 프리셋"></div>
+
+        <section class="download-box" aria-label="bbox 일괄 다운로드">
+          <h2>BBox ZIP 다운로드</h2>
+          <div class="control-grid compact">
+            <label>
+              <span>남</span>
+              <input id="southInput" type="number" step="0.000001">
+            </label>
+            <label>
+              <span>서</span>
+              <input id="westInput" type="number" step="0.000001">
+            </label>
+            <label>
+              <span>북</span>
+              <input id="northInput" type="number" step="0.000001">
+            </label>
+            <label>
+              <span>동</span>
+              <input id="eastInput" type="number" step="0.000001">
+            </label>
+          </div>
+          <div class="button-row">
+            <button id="fillBboxButton" type="button">현재 화면 기준</button>
+            <button id="downloadButton" type="button">ZIP 받기</button>
+          </div>
+          <div class="progress">
+            <div id="progressBar"></div>
+          </div>
+          <p id="downloadStatus">대기 중</p>
+        </section>
+      </aside>
+    </main>
+
+    <script>
+      window.addEventListener("error", function (event) {
+        var status = document.querySelector("#statusText");
+        if (status && document.body.dataset.appReady !== "true") {
+          status.textContent = "앱 시작 실패: " + event.message;
+        }
+      });
+      window.addEventListener("unhandledrejection", function (event) {
+        var status = document.querySelector("#statusText");
+        if (status) {
+          status.textContent = "앱 실행 오류: " + (event.reason && event.reason.message ? event.reason.message : event.reason);
+        }
+      });
+      window.setTimeout(function () {
+        var status = document.querySelector("#statusText");
+        if (status && document.body.dataset.appReady !== "true") {
+          status.textContent = "앱 모듈이 실행되지 않았습니다. http://localhost:5173/ 로 열어주세요.";
+        }
+      }, 1800);
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
