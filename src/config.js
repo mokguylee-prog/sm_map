@@ -38,6 +38,8 @@ function makePlan(width, samples) {
 export const MOVE_TILES_PER_SECOND = 0.85;
 export const RECENTER_THRESHOLD_TILES = 2.25;
 export const ZOOM_DEBOUNCE_MS = 260;
+// 휠 줌 쿨다운(ms). 이 시간 안에 들어온 추가 휠 이벤트는 무시해 줌을 둔감하게 한다.
+export const WHEEL_ZOOM_COOLDOWN_MS = 240;
 export const MIN_ZOOM = 3;
 export const MAX_ZOOM = 15;
 

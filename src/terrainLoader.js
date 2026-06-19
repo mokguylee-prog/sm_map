@@ -1,7 +1,7 @@
 // 지형 로딩 오케스트레이션: 패치 다운로드 → 메시 렌더 → 패치 위치/마커/라벨 갱신.
 
 import * as THREE from "three";
-import { PATCH_WIDTH, PATCH_CENTER_OFFSET, MIN_ZOOM, MAX_ZOOM } from "./config.js";
+import { PATCH_CENTER_OFFSET, MIN_ZOOM, MAX_ZOOM, patchPlanForZoom } from "./config.js";
 import { els, setStatus } from "./dom.js";
 import { S } from "./state.js";
 import { clamp, wrapLon } from "./utils.js";
@@ -11,6 +11,7 @@ import { renderTerrain, sampleHeightAtWorld } from "./terrainMesh.js";
 import { updatePlaceLabels } from "./labels.js";
 import { fillBboxFromCurrent } from "./download.js";
 import { saveState } from "./storage.js";
+import { rebuildFrame } from "./sceneSetup.js";
 import { tileWorldSize, tileOffsetFromOrigin } from "./positioning.js";
 
 export async function loadTerrain(options = {}) {
@@ -23,6 +24,16 @@ export async function loadTerrain(options = {}) {
   els.zoom.value = z;
   saveState();
 
+  // 줌별 패치 계획 적용. 폭이 바뀌면 지형판 프레임(그리드/경계선/방위표)도 재구축.
+  const plan = patchPlanForZoom(z);
+  const widthChanged = plan.width !== S.patchWidth;
+  S.patchWidth = plan.width;
+  S.patchNegative = plan.negative;
+  S.patchPositive = plan.positive;
+  S.tileSamples = plan.samples;
+  S.worldSize = plan.worldSize;
+  if (widthChanged) rebuildFrame();
+
   const tile = latLonToTile(lat, lon, z);
   if (!S.worldOriginTileFloat || options.resetOrigin || S.worldOriginTileFloat.z !== z) {
     // 패치 기하중심을 월드 원점으로 (타일 중심 +0.5 가 아니라 패치 중심 오프셋).
@@ -33,7 +44,7 @@ export async function loadTerrain(options = {}) {
     };
   }
   S.currentTile = tile;
-  setStatus(`주변 타일 로딩: ${PATCH_WIDTH * PATCH_WIDTH}개 (z${z}/${tile.x}/${tile.y} 중심)`);
+  setStatus(`주변 타일 로딩: ${S.patchWidth * S.patchWidth}개 (z${z}/${tile.x}/${tile.y} 중심)`);
   els.tileHud.textContent = `z${z}/${tile.x}/${tile.y}`;
 
   try {
@@ -50,7 +61,7 @@ export async function loadTerrain(options = {}) {
     els.coverageHud.textContent = `${grid.loadedTiles}/${grid.totalTiles}`;
     const missingText = grid.missingTiles
       ? `타일 없음: ${grid.missingTiles}/${grid.totalTiles}개. 이 줌/위치는 데이터가 없을 수 있습니다.`
-      : `표시 중: ${PATCH_WIDTH}x${PATCH_WIDTH} tiles, samples ${grid.tileSamples} at z${z}/${tile.x}/${tile.y} (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+      : `표시 중: ${S.patchWidth}x${S.patchWidth} tiles, samples ${grid.tileSamples} at z${z}/${tile.x}/${tile.y} (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
     setStatus(missingText);
   } catch (error) {
     setStatus(`타일 로딩 실패: ${error.message}`);

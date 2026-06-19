@@ -1,8 +1,9 @@
 // bbox 채우기 + bbox 범위 타일 ZIP 다운로드(병렬).
 
 import JSZip from "jszip";
-import { MIN_ZOOM, MAX_ZOOM, PATCH_NEGATIVE, PATCH_POSITIVE, DOWNLOAD_CONCURRENCY } from "./config.js";
+import { MIN_ZOOM, MAX_ZOOM, DOWNLOAD_CONCURRENCY } from "./config.js";
 import { els } from "./dom.js";
+import { S } from "./state.js";
 import { clamp } from "./utils.js";
 import { latLonToTile, tileFloatToLatLon, tilesForBbox } from "./tileMath.js";
 import { tileUrl } from "./tiles.js";
@@ -16,10 +17,10 @@ export function fillBboxFromCurrent() {
   const n = 2 ** z;
   const center = latLonToTile(lat, lon, z);
 
-  const minX = center.x - PATCH_NEGATIVE;
-  const maxX = center.x + PATCH_POSITIVE;
-  const minY = clamp(center.y - PATCH_NEGATIVE, 0, n - 1);
-  const maxY = clamp(center.y + PATCH_POSITIVE, 0, n - 1);
+  const minX = center.x - S.patchNegative;
+  const maxX = center.x + S.patchPositive;
+  const minY = clamp(center.y - S.patchNegative, 0, n - 1);
+  const maxY = clamp(center.y + S.patchPositive, 0, n - 1);
 
   // 타일 경계를 lat/lon으로: NW = (minX, minY) 좌상단, SE = (maxX+1, maxY+1) 우하단.
   const nw = tileFloatToLatLon(minX, minY, z);

@@ -5,6 +5,7 @@ import {
   MOVE_TILES_PER_SECOND,
   RECENTER_THRESHOLD_TILES,
   ZOOM_DEBOUNCE_MS,
+  WHEEL_ZOOM_COOLDOWN_MS,
   MIN_ZOOM,
   MAX_ZOOM,
 } from "./config.js";
@@ -74,7 +75,8 @@ export function onClickMove(event) {
   els.lat.value = clamp(next.lat, -85, 85).toFixed(6);
   els.lon.value = next.lon.toFixed(6);
   setStatus(`이동: ${next.lat.toFixed(5)}, ${next.lon.toFixed(5)} (클릭 지점)`);
-  loadTerrain({ keepCamera: true, resetOrigin: false });
+  // resetOrigin + 카메라 리프레임으로 클릭 지점을 화면 중앙으로 가져온다.
+  loadTerrain({ resetOrigin: true });
 }
 
 export function onKeyDown(event) {
@@ -88,12 +90,19 @@ export function onKeyUp(event) {
   pressedKeys.delete(event.key);
 }
 
+let lastWheelZoomTime = 0;
+
 export function onTerrainWheel(event) {
   event.preventDefault();
+  // 둔감화: 쿨다운 안에 연속으로 들어오는 휠 이벤트(트랙패드/관성 스크롤 등)는 무시.
+  const now = performance.now();
+  if (now - lastWheelZoomTime < WHEEL_ZOOM_COOLDOWN_MS) return;
+
   const currentZoom = clamp(Math.round(Number(els.zoom.value)), MIN_ZOOM, MAX_ZOOM);
   const nextZoom = clamp(currentZoom + (event.deltaY < 0 ? 1 : -1), MIN_ZOOM, MAX_ZOOM);
   if (nextZoom === currentZoom) return;
 
+  lastWheelZoomTime = now;
   els.zoom.value = nextZoom;
   setStatus(`줌 변경: z${nextZoom} 주변 타일 준비 중...`);
   window.clearTimeout(S.zoomReloadTimer);

@@ -2,15 +2,6 @@
 
 import { clamp, wrapLon } from "./utils.js";
 
-// 줌 레벨에 따른 타일당 지형 메시 샘플 수(해상도 자동 조정).
-export function samplesForZoom(z) {
-  if (z <= 5) return 33;
-  if (z <= 8) return 49;
-  if (z <= 11) return 65;
-  if (z <= 13) return 97;
-  return 129;
-}
-
 export function latLonToTile(lat, lon, z) {
   const latRad = (clamp(lat, -85.05112878, 85.05112878) * Math.PI) / 180;
   const n = 2 ** z;

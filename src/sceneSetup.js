@@ -3,7 +3,6 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { WORLD_SIZE, PATCH_WIDTH } from "./config.js";
 import { els } from "./dom.js";
 import { S } from "./state.js";
 import { roundRect } from "./utils.js";
@@ -30,16 +29,44 @@ export function setupThree() {
   S.scene.add(sun);
   S.scene.add(new THREE.HemisphereLight(0xd9edf4, 0x506245, 2.7));
 
-  const grid = new THREE.GridHelper(WORLD_SIZE, 24, 0x718873, 0x435343);
-  grid.position.y = -10;
-  S.scene.add(grid);
-
-  buildTileBoundaries();
-  buildDirectionMarkers();
+  buildFrame(); // 현재 S.worldSize / S.patchWidth 기준 그리드·경계선·방위표
   buildPlayerMarker();
 
   window.addEventListener("resize", resize);
   resize();
+}
+
+// 지형판 크기/패치 폭이 줌에 따라 바뀌면 호출해 프레임을 다시 만든다.
+export function rebuildFrame() {
+  disposeGroup(S.gridHelper);
+  disposeGroup(S.tileBoundaryGroup);
+  disposeGroup(S.directionGroup);
+  buildFrame();
+}
+
+function buildFrame() {
+  S.gridHelper = new THREE.GridHelper(S.worldSize, 24, 0x718873, 0x435343);
+  S.gridHelper.position.y = -10;
+  S.scene.add(S.gridHelper);
+  buildTileBoundaries();
+  buildDirectionMarkers();
+}
+
+function disposeGroup(obj) {
+  if (!obj) return;
+  S.scene.remove(obj);
+  obj.traverse?.((child) => {
+    child.geometry?.dispose?.();
+    if (child.material) {
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((m) => {
+        m.map?.dispose?.();
+        m.dispose?.();
+      });
+    }
+  });
+  obj.geometry?.dispose?.();
+  obj.material?.dispose?.();
 }
 
 export function makeTextSprite(text, color, options = {}) {
@@ -67,8 +94,8 @@ export function makeTextSprite(text, color, options = {}) {
 
 function buildTileBoundaries() {
   S.tileBoundaryGroup = new THREE.Group();
-  const tileWorld = WORLD_SIZE / PATCH_WIDTH;
-  const half = WORLD_SIZE / 2;
+  const tileWorld = S.worldSize / S.patchWidth;
+  const half = S.worldSize / 2;
   const material = new THREE.LineBasicMaterial({
     color: 0xf0c766,
     transparent: true,
@@ -76,7 +103,7 @@ function buildTileBoundaries() {
     depthTest: false,
   });
 
-  for (let i = 1; i < PATCH_WIDTH; i += 1) {
+  for (let i = 1; i < S.patchWidth; i += 1) {
     const offset = -half + tileWorld * i;
     const vertical = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(offset, 18, -half),
@@ -95,11 +122,12 @@ function buildTileBoundaries() {
 
 function buildDirectionMarkers() {
   S.directionGroup = new THREE.Group();
+  const reach = S.worldSize * 0.56;
   const labels = [
-    { text: "N", x: 0, z: -WORLD_SIZE * 0.56, color: "#f0c766" },
-    { text: "S", x: 0, z: WORLD_SIZE * 0.56, color: "#edf4f1" },
-    { text: "E", x: WORLD_SIZE * 0.56, z: 0, color: "#edf4f1" },
-    { text: "W", x: -WORLD_SIZE * 0.56, z: 0, color: "#edf4f1" },
+    { text: "N", x: 0, z: -reach, color: "#f0c766" },
+    { text: "S", x: 0, z: reach, color: "#edf4f1" },
+    { text: "E", x: reach, z: 0, color: "#edf4f1" },
+    { text: "W", x: -reach, z: 0, color: "#edf4f1" },
   ];
 
   labels.forEach((label) => {
@@ -111,8 +139,8 @@ function buildDirectionMarkers() {
 
   const arrow = new THREE.ArrowHelper(
     new THREE.Vector3(0, 0, -1),
-    new THREE.Vector3(0, 80, WORLD_SIZE * 0.42),
-    WORLD_SIZE * 0.24,
+    new THREE.Vector3(0, 80, S.worldSize * 0.42),
+    S.worldSize * 0.24,
     0xf0c766,
     130,
     70,

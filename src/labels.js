@@ -1,7 +1,7 @@
 // 지명/국가 라벨 스프라이트. 현재 6x6 지형판 안에 들어오는 라벨만 표시한다.
 
 import * as THREE from "three";
-import { WORLD_SIZE, MAX_ZOOM } from "./config.js";
+import { MAX_ZOOM } from "./config.js";
 import { els } from "./dom.js";
 import { S } from "./state.js";
 import { PLACE_LABELS } from "../places.js";
@@ -41,7 +41,7 @@ export function updatePlaceLabels() {
   if (!S.placeLabelGroup || !S.currentTile || !S.worldOriginTileFloat) return;
   const z = Number(els.zoom.value);
   const tileWorld = tileWorldSize();
-  const half = WORLD_SIZE / 2;
+  const half = S.worldSize / 2;
   const waterLevel = S.currentGrid
     ? (S.currentGrid.min < -200 ? 0 : Math.max(0, S.currentGrid.min))
     : 0;

@@ -1,7 +1,6 @@
 // 높이 그리드 → 3D 지형 메시 생성/렌더링과 고도 샘플링.
 
 import * as THREE from "three";
-import { WORLD_SIZE } from "./config.js";
 import { els } from "./dom.js";
 import { S } from "./state.js";
 import { clamp, mix } from "./utils.js";
@@ -14,7 +13,7 @@ export function renderTerrain(grid, options = {}) {
     S.scene.remove(S.terrain);
   }
 
-  const size = grid.worldSize ?? WORLD_SIZE;
+  const size = grid.worldSize ?? S.worldSize;
   const geometry = new THREE.PlaneGeometry(size, size, grid.samples - 1, grid.samples - 1);
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.attributes.position;
@@ -63,7 +62,7 @@ export function terrainColor(t, h, grid) {
 }
 
 export function sampleHeightAtWorld(x, z) {
-  const size = S.currentGrid.worldSize ?? WORLD_SIZE;
+  const size = S.currentGrid.worldSize ?? S.worldSize;
   const u = clamp((x + size / 2) / size, 0, 1);
   const v = clamp((z + size / 2) / size, 0, 1);
   const ix = Math.round(u * (S.currentGrid.samples - 1));
