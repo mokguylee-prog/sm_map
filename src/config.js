@@ -39,6 +39,8 @@ function makePlan(width, samples, refineSamples) {
 
 // 확대 후 화면이 이 시간(ms)만큼 멈춰 있으면 고해상으로 정밀화한다.
 export const REFINE_DELAY_MS = 900;
+export const STREAM_RENDER_THROTTLE_MS = 300;
+export const TILE_FETCH_CONCURRENCY = 8;
 
 export const MOVE_TILES_PER_SECOND = 0.85;
 export const RECENTER_THRESHOLD_TILES = 2.25;

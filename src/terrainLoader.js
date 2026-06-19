@@ -1,7 +1,14 @@
 // 지형 로딩 오케스트레이션: 패치 다운로드 → 메시 렌더 → 패치 위치/마커/라벨 갱신.
 
 import * as THREE from "three";
-import { PATCH_CENTER_OFFSET, MIN_ZOOM, MAX_ZOOM, patchPlanForZoom, REFINE_DELAY_MS } from "./config.js";
+import {
+  PATCH_CENTER_OFFSET,
+  MIN_ZOOM,
+  MAX_ZOOM,
+  patchPlanForZoom,
+  REFINE_DELAY_MS,
+  STREAM_RENDER_THROTTLE_MS,
+} from "./config.js";
 import { els, setStatus } from "./dom.js";
 import { S, pressedKeys } from "./state.js";
 import { clamp, wrapLon } from "./utils.js";
@@ -31,8 +38,80 @@ export async function loadTerrain(options = {}) {
   els.tileHud.textContent = `z${z}/${tile.x}/${tile.y}`;
 
   try {
-    // 패치를 먼저 받는다. plan을 직접 넘기므로 이 시점엔 S(표시 상태)를 건드리지 않는다.
-    const grid = await loadTerrainPatch(tile, z, plan);
+    let committed = false;
+    let renderedOnce = false;
+    let lastPartialRenderTime = 0;
+    let queuedGrid = null;
+    let partialTimer = 0;
+
+    const renderLoadedGrid = (grid, renderOptions) => {
+      S.currentGrid = grid;
+      renderTerrain(grid, renderOptions);
+      updatePatchPosition();
+      updatePlayerMarker();
+      updatePlaceLabels();
+      fillBboxFromCurrent();
+      els.rangeHud.textContent = `${Math.round(grid.min)}m..${Math.round(grid.max)}m`;
+      els.resolutionHud.textContent = `${grid.tileSamples}x${grid.tileSamples} / tile`;
+      els.coverageHud.textContent = `${grid.loadedTiles}/${grid.totalTiles}`;
+      renderedOnce = true;
+      lastPartialRenderTime = performance.now();
+    };
+
+    const commitPlan = () => {
+      if (committed) return;
+      const widthChanged = plan.width !== S.patchWidth;
+      S.patchWidth = plan.width;
+      S.patchNegative = plan.negative;
+      S.patchPositive = plan.positive;
+      S.tileSamples = plan.samples;
+      S.worldSize = plan.worldSize;
+      if (widthChanged) rebuildFrame();
+
+      if (!S.worldOriginTileFloat || options.resetOrigin || S.worldOriginTileFloat.z !== z) {
+        // 패치 기하중심을 월드 원점으로 (타일 중심 +0.5 가 아니라 패치 중심 오프셋).
+        S.worldOriginTileFloat = {
+          x: tile.x + PATCH_CENTER_OFFSET,
+          y: tile.y + PATCH_CENTER_OFFSET,
+          z,
+        };
+      }
+      S.currentTile = tile;
+      committed = true;
+    };
+
+    const renderQueuedPartial = () => {
+      partialTimer = 0;
+      if (version !== S.loadVersion || !queuedGrid || queuedGrid.loadedTiles === 0) return;
+      commitPlan();
+      renderLoadedGrid(queuedGrid, { keepCamera: true });
+      setStatus(`주변 타일 표시 중: ${queuedGrid.loadedTiles}/${queuedGrid.totalTiles}개`);
+      queuedGrid = null;
+    };
+
+    const handlePartial = (grid) => {
+      if (version !== S.loadVersion || grid.loadedTiles === 0) return;
+      commitPlan();
+      queuedGrid = grid;
+      const now = performance.now();
+      if (!renderedOnce || now - lastPartialRenderTime >= STREAM_RENDER_THROTTLE_MS) {
+        if (partialTimer) {
+          window.clearTimeout(partialTimer);
+          partialTimer = 0;
+        }
+        renderLoadedGrid(grid, renderedOnce ? { keepCamera: true } : options);
+        setStatus(`주변 타일 표시 중: ${grid.loadedTiles}/${grid.totalTiles}개`);
+        queuedGrid = null;
+        return;
+      }
+      if (!partialTimer) {
+        partialTimer = window.setTimeout(renderQueuedPartial, STREAM_RENDER_THROTTLE_MS);
+      }
+    };
+
+    // 중심 타일부터 들어오는 대로 먼저 표시한다.
+    const grid = await loadTerrainPatch(tile, z, plan, handlePartial);
+    if (partialTimer) window.clearTimeout(partialTimer);
     if (version !== S.loadVersion) return;
 
     // 타일이 전부 없는 구간(예: Mapterhorn은 한국 z13+ 전부 404):
@@ -53,34 +132,9 @@ export async function loadTerrain(options = {}) {
       return;
     }
 
-    // 여기서부터 새 패치를 표시 상태(S)에 커밋한다.
-    const widthChanged = plan.width !== S.patchWidth;
-    S.patchWidth = plan.width;
-    S.patchNegative = plan.negative;
-    S.patchPositive = plan.positive;
-    S.tileSamples = plan.samples;
-    S.worldSize = plan.worldSize;
-    if (widthChanged) rebuildFrame();
-
-    if (!S.worldOriginTileFloat || options.resetOrigin || S.worldOriginTileFloat.z !== z) {
-      // 패치 기하중심을 월드 원점으로 (타일 중심 +0.5 가 아니라 패치 중심 오프셋).
-      S.worldOriginTileFloat = {
-        x: tile.x + PATCH_CENTER_OFFSET,
-        y: tile.y + PATCH_CENTER_OFFSET,
-        z,
-      };
-    }
-    S.currentTile = tile;
-    S.currentGrid = grid;
+    commitPlan();
     S.lastGoodZoom = z;
-    renderTerrain(grid, options);
-    updatePatchPosition();
-    updatePlayerMarker();
-    updatePlaceLabels();
-    fillBboxFromCurrent();
-    els.rangeHud.textContent = `${Math.round(grid.min)}m..${Math.round(grid.max)}m`;
-    els.resolutionHud.textContent = `${grid.tileSamples}x${grid.tileSamples} / tile`;
-    els.coverageHud.textContent = `${grid.loadedTiles}/${grid.totalTiles}`;
+    renderLoadedGrid(grid, renderedOnce ? { keepCamera: true } : options);
     const missingText = grid.missingTiles
       ? `일부 타일 없음: ${grid.missingTiles}/${grid.totalTiles}개. 빈 칸은 평지로 표시됩니다.`
       : `표시 중: ${S.patchWidth}x${S.patchWidth} tiles, samples ${grid.tileSamples} at z${z}/${tile.x}/${tile.y} (${lat.toFixed(5)}, ${lon.toFixed(5)})`;

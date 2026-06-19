@@ -1,4 +1,5 @@
 import { WORLD_COUNTRY_LABELS } from "./country-labels.js";
+import { WORLD_MOUNTAIN_LABELS } from "./mountains.js";
 
 export const PRESETS = [
   { name: "한국", lat: 36.5, lon: 127.8, zoom: 8 },
@@ -63,4 +64,5 @@ export const REGIONAL_PLACE_LABELS = [
 export const PLACE_LABELS = [
   ...WORLD_COUNTRY_LABELS,
   ...REGIONAL_PLACE_LABELS,
+  ...WORLD_MOUNTAIN_LABELS,
 ];

@@ -1,6 +1,6 @@
 // 타일 URL 생성, 다운로드 + 디코딩, 패치(현재 줌 계획) 조립.
 
-import { TILE_SIZE, TILE_CACHE_LIMIT } from "./config.js";
+import { TILE_SIZE, TILE_CACHE_LIMIT, TILE_FETCH_CONCURRENCY } from "./config.js";
 import { els } from "./dom.js";
 import { clamp } from "./utils.js";
 
@@ -79,8 +79,7 @@ export function emptyGrid(samples) {
 // 중심 타일 주변 (plan) width x width 타일을 받아 하나의 높이 그리드로 합친다.
 // plan = { width, negative, positive, samples, worldSize } (patchPlanForZoom 결과).
 // S에 의존하지 않으므로, 호출자(terrainLoader)는 결과를 보고 커밋 여부를 결정할 수 있다.
-export async function loadTerrainPatch(centerTile, z, plan) {
-  const { width: patchWidth, negative: patchNegative, positive: patchPositive, samples: tileSamples, worldSize } = plan;
+function buildPatchTiles(centerTile, z, patchNegative, patchPositive) {
   const patchTiles = [];
   const limit = 2 ** z;
   for (let oy = -patchNegative; oy <= patchPositive; oy += 1) {
@@ -93,52 +92,81 @@ export async function loadTerrainPatch(centerTile, z, plan) {
       });
     }
   }
-
-  const decodedTiles = await Promise.all(
-    patchTiles.map(async (tile) => {
-      try {
-        const imageData = await fetchTileImageData(tile.x, tile.y, z);
-        return { ...tile, grid: decodeGrid(imageData, tileSamples), missing: false };
-      } catch (error) {
-        return { ...tile, grid: emptyGrid(tileSamples), missing: true, error };
-      }
-    }),
-  );
-
-  const samples = tileSamples * patchWidth - (patchWidth - 1);
-  const heights = new Float32Array(samples * samples);
-  const missingTiles = decodedTiles.filter((tile) => tile.missing).length;
-  let min = Infinity;
-  let max = -Infinity;
-
-  decodedTiles.forEach((tile) => {
-    const startX = (tile.ox + patchNegative) * (tileSamples - 1);
-    const startY = (tile.oy + patchNegative) * (tileSamples - 1);
-    for (let y = 0; y < tileSamples; y += 1) {
-      for (let x = 0; x < tileSamples; x += 1) {
-        const h = tile.grid.heights[y * tileSamples + x];
-        const target = (startY + y) * samples + startX + x;
-        heights[target] = h;
-        min = Math.min(min, h);
-        max = Math.max(max, h);
-      }
-    }
+  patchTiles.sort((a, b) => {
+    const da = Math.abs(a.ox) + Math.abs(a.oy);
+    const db = Math.abs(b.ox) + Math.abs(b.oy);
+    return da - db || Math.abs(a.oy) - Math.abs(b.oy) || Math.abs(a.ox) - Math.abs(b.ox);
   });
+  return patchTiles;
+}
 
-  if (!Number.isFinite(min) || !Number.isFinite(max)) {
-    min = 0;
-    max = 0;
+function stitchTile(tile, grid, tileSamples, samples, patchNegative, heights) {
+  const startX = (tile.ox + patchNegative) * (tileSamples - 1);
+  const startY = (tile.oy + patchNegative) * (tileSamples - 1);
+  for (let y = 0; y < tileSamples; y += 1) {
+    for (let x = 0; x < tileSamples; x += 1) {
+      const target = (startY + y) * samples + startX + x;
+      heights[target] = grid.heights[y * tileSamples + x];
+    }
   }
+}
 
+function patchSnapshot(state) {
+  const min = Number.isFinite(state.min) ? state.min : 0;
+  const max = Number.isFinite(state.max) ? state.max : 0;
   return {
-    heights,
-    samples,
+    heights: state.heights,
+    samples: state.samples,
     min,
     max,
+    worldSize: state.worldSize,
+    tileSamples: state.tileSamples,
+    totalTiles: state.totalTiles,
+    missingTiles: state.settledTiles - state.loadedTiles,
+    loadedTiles: state.loadedTiles,
+  };
+}
+
+export async function loadTerrainPatch(centerTile, z, plan, onPartial) {
+  const { width: patchWidth, negative: patchNegative, positive: patchPositive, samples: tileSamples, worldSize } = plan;
+  const patchTiles = buildPatchTiles(centerTile, z, patchNegative, patchPositive);
+  const samples = tileSamples * patchWidth - (patchWidth - 1);
+  const state = {
+    heights: new Float32Array(samples * samples),
+    samples,
+    min: Infinity,
+    max: -Infinity,
     worldSize,
     tileSamples,
-    totalTiles: decodedTiles.length,
-    missingTiles,
-    loadedTiles: decodedTiles.length - missingTiles,
+    totalTiles: patchTiles.length,
+    loadedTiles: 0,
+    settledTiles: 0,
   };
+
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < patchTiles.length) {
+      const tile = patchTiles[nextIndex];
+      nextIndex += 1;
+      try {
+        const imageData = await fetchTileImageData(tile.x, tile.y, z);
+        const grid = decodeGrid(imageData, tileSamples);
+        stitchTile(tile, grid, tileSamples, samples, patchNegative, state.heights);
+        state.min = Math.min(state.min, grid.min);
+        state.max = Math.max(state.max, grid.max);
+        state.loadedTiles += 1;
+      } catch {
+        // 없는 타일은 0m 평면으로 남겨두고, 들어온 타일부터 먼저 보여준다.
+      }
+      state.settledTiles += 1;
+      onPartial?.(patchSnapshot(state));
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(TILE_FETCH_CONCURRENCY, patchTiles.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return patchSnapshot(state);
 }

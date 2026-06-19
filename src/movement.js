@@ -17,6 +17,26 @@ import { tileOffsetFromAnchor, tileWorldSize } from "./positioning.js";
 import { sampleHeightAtWorld } from "./terrainMesh.js";
 import { loadTerrain, updatePlayerMarker } from "./terrainLoader.js";
 
+function terrainLatLonFromPointer(event) {
+  if (!S.terrain || !S.currentGrid || !S.worldOriginTileFloat) return null;
+  const rect = S.renderer.domElement.getBoundingClientRect();
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer, S.camera);
+  const hit = raycaster.intersectObject(S.terrain)[0];
+  if (!hit) return null;
+
+  // 월드 좌표 → 타일 좌표 → 위/경도. (월드 = (tileFloat − 원점) × tileWorld)
+  const z = Number(els.zoom.value);
+  const tileWorld = tileWorldSize();
+  const tileX = S.worldOriginTileFloat.x + hit.point.x / tileWorld;
+  const tileY = S.worldOriginTileFloat.y + hit.point.z / tileWorld;
+  return tileFloatToLatLon(tileX, tileY, z);
+}
+
 export function onPointerMove(event) {
   if (!S.terrain || !S.currentGrid) return;
   const rect = S.renderer.domElement.getBoundingClientRect();
@@ -53,24 +73,8 @@ export function onClickMove(event) {
   if (Math.hypot(event.clientX - pointerDownX, event.clientY - pointerDownY) > CLICK_DRAG_TOLERANCE) {
     return; // 드래그 → 카메라 회전이므로 이동하지 않음
   }
-  if (!S.terrain || !S.currentGrid || !S.worldOriginTileFloat) return;
-
-  const rect = S.renderer.domElement.getBoundingClientRect();
-  const pointer = new THREE.Vector2(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1,
-  );
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(pointer, S.camera);
-  const hit = raycaster.intersectObject(S.terrain)[0];
-  if (!hit) return;
-
-  // 월드 좌표 → 타일 좌표 → 위/경도. (월드 = (tileFloat − 원점) × tileWorld)
-  const z = Number(els.zoom.value);
-  const tileWorld = tileWorldSize();
-  const tileX = S.worldOriginTileFloat.x + hit.point.x / tileWorld;
-  const tileY = S.worldOriginTileFloat.y + hit.point.z / tileWorld;
-  const next = tileFloatToLatLon(tileX, tileY, z);
+  const next = terrainLatLonFromPointer(event);
+  if (!next) return;
 
   els.lat.value = clamp(next.lat, -85, 85).toFixed(6);
   els.lon.value = next.lon.toFixed(6);
@@ -104,8 +108,13 @@ export function onTerrainWheel(event) {
   if (nextZoom === currentZoom) return;
 
   lastWheelZoomTime = now;
+  const cursorPosition = terrainLatLonFromPointer(event);
+  if (cursorPosition) {
+    els.lat.value = clamp(cursorPosition.lat, -85, 85).toFixed(6);
+    els.lon.value = cursorPosition.lon.toFixed(6);
+  }
   els.zoom.value = nextZoom;
-  setStatus(`줌 변경: z${nextZoom} 주변 타일 준비 중...`);
+  setStatus(`줌 변경: z${nextZoom} 주변 타일 준비 중${cursorPosition ? " (커서 기준)" : ""}...`);
   window.clearTimeout(S.zoomReloadTimer);
   S.zoomReloadTimer = window.setTimeout(() => {
     loadTerrain({ resetOrigin: true, keepCamera: true });

@@ -86,6 +86,7 @@ function bindEvents() {
       els.url.value = SOURCES[els.source.value];
     }
     saveState();
+    loadTerrain({ keepCamera: true, resetOrigin: true });
   });
   els.load.addEventListener("click", () => loadTerrain({ keepCamera: true, resetOrigin: true }));
   els.locate.addEventListener("click", () => locate(true));
