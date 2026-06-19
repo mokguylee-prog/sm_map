@@ -10,6 +10,7 @@ import { loadTerrainPatch } from "./tiles.js";
 import { renderTerrain, sampleHeightAtWorld } from "./terrainMesh.js";
 import { updatePlaceLabels } from "./labels.js";
 import { fillBboxFromCurrent } from "./download.js";
+import { saveState } from "./storage.js";
 import { tileWorldSize, tileOffsetFromOrigin } from "./positioning.js";
 
 export async function loadTerrain(options = {}) {
@@ -20,7 +21,7 @@ export async function loadTerrain(options = {}) {
   els.lat.value = lat.toFixed(6);
   els.lon.value = lon.toFixed(6);
   els.zoom.value = z;
-  saveStateLazy();
+  saveState();
 
   const tile = latLonToTile(lat, lon, z);
   if (!S.worldOriginTileFloat || options.resetOrigin || S.worldOriginTileFloat.z !== z) {
@@ -95,13 +96,4 @@ export function updatePlayerMarker() {
   const cameraFollowDelta = desiredTarget.clone().sub(S.controls.target).multiplyScalar(0.18);
   S.controls.target.add(cameraFollowDelta);
   S.camera.position.add(cameraFollowDelta);
-}
-
-// 순환 import를 피하기 위한 지연 saveState 호출.
-let saveStateRef = null;
-export function registerSaveState(fn) {
-  saveStateRef = fn;
-}
-function saveStateLazy() {
-  if (saveStateRef) saveStateRef();
 }
