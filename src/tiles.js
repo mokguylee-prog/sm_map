@@ -1,9 +1,9 @@
-// 타일 URL 생성, 다운로드 + 디코딩, 6x6 패치 조립.
+// 타일 URL 생성, 다운로드 + 디코딩, 패치(현재 줌 계획) 조립.
 
-import { TILE_SIZE, TILE_CACHE_LIMIT, PATCH_WIDTH, PATCH_NEGATIVE, PATCH_POSITIVE, WORLD_SIZE } from "./config.js";
+import { TILE_SIZE, TILE_CACHE_LIMIT } from "./config.js";
 import { els } from "./dom.js";
+import { S } from "./state.js";
 import { clamp } from "./utils.js";
-import { samplesForZoom } from "./tileMath.js";
 
 // P2: URL 키 LRU 캐시. 상한을 넘으면 가장 오래된 항목부터 제거한다.
 const tileImageDataCache = new Map();
@@ -77,13 +77,14 @@ export function emptyGrid(samples) {
   };
 }
 
-// 중심 타일 주변 PATCH_WIDTH x PATCH_WIDTH 타일을 받아 하나의 높이 그리드로 합친다.
+// 중심 타일 주변 (현재 줌 계획) width x width 타일을 받아 하나의 높이 그리드로 합친다.
+// 패치 폭/샘플/월드크기는 S(상태)에 미리 설정되어 있어야 한다(terrainLoader가 설정).
 export async function loadTerrainPatch(centerTile, z) {
+  const { patchWidth, patchNegative, patchPositive, tileSamples, worldSize } = S;
   const patchTiles = [];
   const limit = 2 ** z;
-  const tileSamples = samplesForZoom(z);
-  for (let oy = -PATCH_NEGATIVE; oy <= PATCH_POSITIVE; oy += 1) {
-    for (let ox = -PATCH_NEGATIVE; ox <= PATCH_POSITIVE; ox += 1) {
+  for (let oy = -patchNegative; oy <= patchPositive; oy += 1) {
+    for (let ox = -patchNegative; ox <= patchPositive; ox += 1) {
       patchTiles.push({
         x: (centerTile.x + ox + limit) % limit,
         y: clamp(centerTile.y + oy, 0, limit - 1),
@@ -104,16 +105,15 @@ export async function loadTerrainPatch(centerTile, z) {
     }),
   );
 
-  const tilesWide = PATCH_WIDTH;
-  const samples = tileSamples * tilesWide - (tilesWide - 1);
+  const samples = tileSamples * patchWidth - (patchWidth - 1);
   const heights = new Float32Array(samples * samples);
   const missingTiles = decodedTiles.filter((tile) => tile.missing).length;
   let min = Infinity;
   let max = -Infinity;
 
   decodedTiles.forEach((tile) => {
-    const startX = (tile.ox + PATCH_NEGATIVE) * (tileSamples - 1);
-    const startY = (tile.oy + PATCH_NEGATIVE) * (tileSamples - 1);
+    const startX = (tile.ox + patchNegative) * (tileSamples - 1);
+    const startY = (tile.oy + patchNegative) * (tileSamples - 1);
     for (let y = 0; y < tileSamples; y += 1) {
       for (let x = 0; x < tileSamples; x += 1) {
         const h = tile.grid.heights[y * tileSamples + x];
@@ -135,7 +135,7 @@ export async function loadTerrainPatch(centerTile, z) {
     samples,
     min,
     max,
-    worldSize: WORLD_SIZE,
+    worldSize,
     tileSamples,
     totalTiles: decodedTiles.length,
     missingTiles,

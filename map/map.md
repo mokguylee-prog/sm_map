@@ -162,6 +162,10 @@ y = floor( (1 - ln(tan(lat_rad) + 1/cos(lat_rad)) / π) / 2 * n )   // lat_rad =
 - 이동: 방향키를 누르는 동안 현재 위치 마커가 월드 좌표 기준으로 전후좌우 이동한다.
   6x6 지형판 가장자리 쪽으로 접근하면 해당 위치 기준 주변 타일을 자동으로 다시 로딩하고,
   카메라는 커서를 따라간다.
+- 클릭 이동(2026-06-20): 왼쪽 클릭 지점으로 관찰자를 이동한다. 레이캐스트 충돌점을
+  월드→타일→위경도로 역변환해 위치를 갱신하고 패치를 재로딩한다. 드래그(카메라 회전)와
+  구분하기 위해 누른 지점에서 6px 이내로 거의 움직이지 않은 제자리 클릭만 이동으로 처리한다.
+  (`src/movement.js: onPointerDown/onClickMove`)
 - 줌/방위: 마우스 휠은 카메라 거리 대신 타일 줌 값을 변경하고 주변 6x6 타일을 다시 로딩한다.
   우상단 나침반 바늘은 카메라 회전 방향에 맞춰 갱신된다.
 - 해상도: 6x6 지형 메시의 타일당 샘플 수는 줌 레벨에 따라 자동 조정한다.
@@ -181,17 +185,37 @@ y = floor( (1 - ln(tan(lat_rad) + 1/cos(lat_rad)) / π) / 2 * n )   // lat_rad =
 - Mapterhorn: `Access-Control-Allow-Origin: *`
 - AWS S3 elevation-tiles-prod: **GET 요청에** `Access-Control-Allow-Origin: *` 반환 (HEAD엔 없음)
 
-**개선 필요 항목 (우선순위):**
+**리팩터링 (2026-06-20 완료):** 906줄 단일 `app.js` 를 기능별 ES 모듈로 분리.
+공유 가변 상태는 `src/state.js` 의 단일 객체 `S` 로 모음. (순환 import 없음)
 
-- **P1 ·** `fillBboxFromCurrent`가 타일 ~2×2만 잡음 → 화면의 6×6 패치와 불일치.
-  패치 실제 범위(`PATCH_NEGATIVE`~`PATCH_POSITIVE`) 기준으로 bbox 계산해야 함. (`app.js:592`)
-- **P1 ·** 실행 방법 미문서화 + 오류 메시지가 없는 Vite(5173)를 가리킴(`index.html:154`).
-  정적 importmap 사이트라 http 서버 필요(`file://` 불가, geolocation은 보안 컨텍스트 필요).
-- **P2 ·** `tileImageDataCache` 무제한 증가 → 장시간 이동 시 메모리 누수. LRU 상한 필요. (`app.js:68`)
-- **P2 ·** bbox 다운로드가 직렬(`for…await`) → 느림. 동시 6~8개 병렬화 필요. (`app.js:621`)
-- **P2 ·** 시작 시 라벨 스프라이트 ~250개를 각각 CanvasTexture로 생성 → startup·GPU 부담.
-- **P3 ·** 날짜변경선(±180°) bbox 미처리(`app.js:645`), 남북 방향 뒤집힘 가능성 확인 필요,
-  죽은 코드(`pendingTileKey`/`tileKey`), 타일 가장자리 미세 seam.
+- `src/`: config, utils, tileMath, dom, state, storage, tiles, positioning,
+  sceneSetup, terrainMesh, labels, terrainLoader, movement, download
+- `app.js` 는 진입점/오케스트레이터로 축소.
+
+**개선 항목 처리 결과 (모두 적용 완료):**
+
+- **P1 ✅** `fillBboxFromCurrent` → 실제 6×6 패치 타일 범위(`PATCH_NEGATIVE`~`PATCH_POSITIVE`)를
+  lat/lon으로 변환해 bbox 산출. (`src/download.js`)
+- **P1 ✅** `index.html` 시작 실패 메시지를 "HTTP 서버로 열라(`python -m http.server`)"로 수정.
+  실행 방법은 `README.md` 에 문서화됨(`file://` 불가).
+- **P2 ✅** 타일 이미지 캐시를 LRU(상한 `TILE_CACHE_LIMIT`=320)로 교체. (`src/tiles.js`)
+- **P2 ✅** bbox 다운로드를 동시 `DOWNLOAD_CONCURRENCY`(=6) 워커 풀로 병렬화. (`src/download.js`)
+- **P2 ✅** 라벨 스프라이트를 시작 시 일괄 생성하지 않고, 처음 보일 때 생성·캐시. (`src/labels.js`)
+- **P3 ✅** `tilesForBbox` 날짜변경선(west>east) 래핑 처리. (`src/tileMath.js`)
+- **P3 ✅** 죽은 코드(`pendingTileKey`/`tileKey`) 제거.
+- **P3 ☑** 남북 방향: PlaneGeometry 정점 순서 vs 높이 행우선 정렬 재검토 → 북쪽 데이터가
+  북쪽(−Z)에 매핑되어 **뒤집힘 없음** 확인. 타일 가장자리 seam은 인접 픽셀 차이로 미미해 허용.
+
+**버그 수정 — 지명이 실제 좌표를 이탈(축소 시 한국 지명이 일본에 찍힘) (2026-06-20):**
+
+- 원인: 패치가 비대칭(서/북 2칸·동/남 3칸 = 6×6)이라 메시 월드 원점(0,0)은
+  `중심타일 + 1`(타일 경계)에 해당하는데, 라벨/마커 원점은 `중심타일 + 0.5`(타일 중심)로
+  잡혀 있어 **항상 0.5타일 동·남쪽으로 어긋남**.
+- 줌이 낮을수록 0.5타일의 실제 경도폭이 커져 증상 심화: z12 ≈ 5km(무시 가능),
+  z5 ≈ 5.6°(서일본), z3 ≈ 22.5°(일본 동쪽 바다).
+- 수정: `PATCH_CENTER_OFFSET = PATCH_WIDTH/2 − PATCH_NEGATIVE`(=1) 도입,
+  `worldOriginTileFloat` 와 `updatePatchPosition` 의 기준을 패치 기하중심으로 통일.
+  (`src/config.js`, `src/terrainLoader.js`)
 
 ---
 

@@ -12,7 +12,7 @@ import { els, setStatus } from "./dom.js";
 import { S, pressedKeys } from "./state.js";
 import { clamp } from "./utils.js";
 import { latLonToTileFloat, tileFloatToLatLon } from "./tileMath.js";
-import { tileOffsetFromAnchor } from "./positioning.js";
+import { tileOffsetFromAnchor, tileWorldSize } from "./positioning.js";
 import { sampleHeightAtWorld } from "./terrainMesh.js";
 import { loadTerrain, updatePlayerMarker } from "./terrainLoader.js";
 
@@ -32,6 +32,49 @@ export function onPointerMove(event) {
   }
   const height = sampleHeightAtWorld(hit.point.x - S.terrain.position.x, hit.point.z - S.terrain.position.z);
   els.height.textContent = `height_m: ${height.toFixed(1)}`;
+}
+
+// 왼쪽 클릭으로 관찰자 이동. 단, 카메라 회전(드래그)과 구분하기 위해
+// 누른 지점에서 거의 움직이지 않은 "제자리 클릭"만 이동으로 처리한다.
+let pointerDownX = 0;
+let pointerDownY = 0;
+let pointerDownButton = -1;
+const CLICK_DRAG_TOLERANCE = 6; // px
+
+export function onPointerDown(event) {
+  pointerDownX = event.clientX;
+  pointerDownY = event.clientY;
+  pointerDownButton = event.button;
+}
+
+export function onClickMove(event) {
+  if (pointerDownButton !== 0) return; // 좌클릭만
+  if (Math.hypot(event.clientX - pointerDownX, event.clientY - pointerDownY) > CLICK_DRAG_TOLERANCE) {
+    return; // 드래그 → 카메라 회전이므로 이동하지 않음
+  }
+  if (!S.terrain || !S.currentGrid || !S.worldOriginTileFloat) return;
+
+  const rect = S.renderer.domElement.getBoundingClientRect();
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer, S.camera);
+  const hit = raycaster.intersectObject(S.terrain)[0];
+  if (!hit) return;
+
+  // 월드 좌표 → 타일 좌표 → 위/경도. (월드 = (tileFloat − 원점) × tileWorld)
+  const z = Number(els.zoom.value);
+  const tileWorld = tileWorldSize();
+  const tileX = S.worldOriginTileFloat.x + hit.point.x / tileWorld;
+  const tileY = S.worldOriginTileFloat.y + hit.point.z / tileWorld;
+  const next = tileFloatToLatLon(tileX, tileY, z);
+
+  els.lat.value = clamp(next.lat, -85, 85).toFixed(6);
+  els.lon.value = next.lon.toFixed(6);
+  setStatus(`이동: ${next.lat.toFixed(5)}, ${next.lon.toFixed(5)} (클릭 지점)`);
+  loadTerrain({ keepCamera: true, resetOrigin: false });
 }
 
 export function onKeyDown(event) {

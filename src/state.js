@@ -13,8 +13,16 @@ export const S = {
   terrain: null,
   directionGroup: null,
   tileBoundaryGroup: null,
+  gridHelper: null,
   playerMarker: null,
   placeLabelGroup: null,
+
+  // 현재 패치 계획(줌에 따라 동적). 초기값은 z12 기준.
+  patchWidth: 6,
+  patchNegative: 2,
+  patchPositive: 3,
+  tileSamples: 97,
+  worldSize: 7200,
 
   // 지형/위치 상태
   currentGrid: null,

@@ -22,7 +22,15 @@ import { saveState, loadState } from "./src/storage.js";
 import { setupThree, updateCompass } from "./src/sceneSetup.js";
 import { buildPlaceLabels } from "./src/labels.js";
 import { loadTerrain, applyExaggeration } from "./src/terrainLoader.js";
-import { onKeyDown, onKeyUp, onTerrainWheel, onPointerMove, updateMovement } from "./src/movement.js";
+import {
+  onKeyDown,
+  onKeyUp,
+  onTerrainWheel,
+  onPointerMove,
+  onPointerDown,
+  onClickMove,
+  updateMovement,
+} from "./src/movement.js";
 import { fillBboxFromCurrent, downloadBbox } from "./src/download.js";
 import { PRESETS } from "./places.js";
 
@@ -77,6 +85,8 @@ function bindEvents() {
   els.fillBbox.addEventListener("click", fillBboxFromCurrent);
   els.download.addEventListener("click", downloadBbox);
   S.renderer.domElement.addEventListener("pointermove", onPointerMove);
+  S.renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  S.renderer.domElement.addEventListener("click", onClickMove);
   S.renderer.domElement.addEventListener("wheel", onTerrainWheel, { passive: false });
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);

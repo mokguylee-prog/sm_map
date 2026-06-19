@@ -2,12 +2,39 @@
 
 export const TILE_SIZE = 256;
 
-// 화면에 이어 붙이는 지형판 크기 (가로/세로 타일 수)
-export const PATCH_WIDTH = 6;
-export const PATCH_NEGATIVE = 2; // 중심 타일 기준 음수 방향 타일 수
-export const PATCH_POSITIVE = PATCH_WIDTH - PATCH_NEGATIVE - 1;
+// 타일 한 칸의 월드 크기(고정). 지형판 전체 크기 = 패치 폭 × 이 값.
+export const TILE_WORLD = 1200;
 
-export const WORLD_SIZE = 7200; // 지형판의 월드 한 변 길이
+// 패치 기하중심이 중심 타일로부터 떨어진 거리(타일 단위).
+// 모든 패치를 negative = width/2 - 1 로 구성하므로 이 값은 항상 1이다.
+// (메시 월드 원점(0,0)에 해당하는 타일 좌표 = 중심타일 + 이 값.)
+// 라벨/마커/패치 위치의 기준으로 일관되게 써야 지명이 실제 좌표에 정확히 찍힌다.
+export const PATCH_CENTER_OFFSET = 1;
+
+// 줌별 패치 계획.
+// 줌 아웃일수록 더 넓은 패치(타일 수↑)를 낮은 해상도(타일당 샘플↓)로 불러와,
+// 지형판이 화면을 더 넓게 덮어 '여백'(지형판 밖 빈 공간)을 줄인다.
+// 모두 짝수 폭 + negative = width/2 - 1 → 패치 중심 오프셋이 항상 1로 유지된다.
+export function patchPlanForZoom(z) {
+  if (z >= 14) return makePlan(6, 129);
+  if (z >= 12) return makePlan(6, 97);
+  if (z >= 9) return makePlan(8, 65);
+  if (z >= 7) return makePlan(10, 49);
+  if (z >= 5) return makePlan(12, 41);
+  return makePlan(14, 33);
+}
+
+function makePlan(width, samples) {
+  const negative = width / 2 - 1;
+  return {
+    width,
+    negative,
+    positive: width - negative - 1,
+    samples,
+    worldSize: width * TILE_WORLD,
+  };
+}
+
 export const MOVE_TILES_PER_SECOND = 0.85;
 export const RECENTER_THRESHOLD_TILES = 2.25;
 export const ZOOM_DEBOUNCE_MS = 260;

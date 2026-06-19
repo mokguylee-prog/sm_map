@@ -1,7 +1,7 @@
 // 지형 로딩 오케스트레이션: 패치 다운로드 → 메시 렌더 → 패치 위치/마커/라벨 갱신.
 
 import * as THREE from "three";
-import { PATCH_WIDTH, MIN_ZOOM, MAX_ZOOM } from "./config.js";
+import { PATCH_WIDTH, PATCH_CENTER_OFFSET, MIN_ZOOM, MAX_ZOOM } from "./config.js";
 import { els, setStatus } from "./dom.js";
 import { S } from "./state.js";
 import { clamp, wrapLon } from "./utils.js";
@@ -25,7 +25,12 @@ export async function loadTerrain(options = {}) {
 
   const tile = latLonToTile(lat, lon, z);
   if (!S.worldOriginTileFloat || options.resetOrigin || S.worldOriginTileFloat.z !== z) {
-    S.worldOriginTileFloat = { x: tile.x + 0.5, y: tile.y + 0.5, z };
+    // 패치 기하중심을 월드 원점으로 (타일 중심 +0.5 가 아니라 패치 중심 오프셋).
+    S.worldOriginTileFloat = {
+      x: tile.x + PATCH_CENTER_OFFSET,
+      y: tile.y + PATCH_CENTER_OFFSET,
+      z,
+    };
   }
   S.currentTile = tile;
   setStatus(`주변 타일 로딩: ${PATCH_WIDTH * PATCH_WIDTH}개 (z${z}/${tile.x}/${tile.y} 중심)`);
@@ -62,7 +67,11 @@ export function applyExaggeration() {
 
 export function updatePatchPosition() {
   if (!S.currentTile || !S.worldOriginTileFloat) return;
-  const center = { x: S.currentTile.x + 0.5, y: S.currentTile.y + 0.5 };
+  // 메시 콘텐츠 중심 = 현재 패치의 기하중심(타일 중심이 아님).
+  const center = {
+    x: S.currentTile.x + PATCH_CENTER_OFFSET,
+    y: S.currentTile.y + PATCH_CENTER_OFFSET,
+  };
   const offset = tileOffsetFromOrigin(center);
   const tileWorld = tileWorldSize();
   const x = offset.x * tileWorld;
