@@ -32,6 +32,30 @@ http://localhost:5173/
 - 고도 타일은 Terrarium RGB 방식으로 디코딩합니다.
 - 지명 라벨은 API 키 없이 동작하도록 `country-labels.js`와 `places.js`에 내장했습니다.
 
+## 구조 (모듈)
+
+빌드 단계는 없습니다. three / jszip 은 `index.html` 의 importmap이 CDN에서 직접 불러옵니다.
+`app.js` 는 진입점이며 기능은 `src/` 하위 모듈로 분리되어 있습니다.
+
+| 영역 | 파일 |
+| --- | --- |
+| 진입점/오케스트레이터 | `app.js` |
+| 상수·설정 | `src/config.js` |
+| 순수 유틸 | `src/utils.js` |
+| 타일 좌표 수학 | `src/tileMath.js` |
+| DOM 참조 | `src/dom.js` |
+| 공유 상태(S) | `src/state.js` |
+| localStorage 저장/복원 | `src/storage.js` |
+| 타일 fetch(LRU)/디코딩/패치 | `src/tiles.js` |
+| 타일→월드 좌표 | `src/positioning.js` |
+| Three.js 씬/마커/나침반 | `src/sceneSetup.js` |
+| 높이그리드→3D 메시 | `src/terrainMesh.js` |
+| 지명/국가 라벨(지연 생성) | `src/labels.js` |
+| 로딩 오케스트레이션 | `src/terrainLoader.js` |
+| 입력(마우스/방향키/휠) | `src/movement.js` |
+| bbox 채우기/ZIP 다운로드 | `src/download.js` |
+| 프리셋·지역 지명 | `places.js`, `country-labels.js` |
+
 ## 참고
 
 자세한 설계와 요구사항은 `WEBAPP_REQUIREMENTS.md`와 `map/map.md`를 참고하세요.
