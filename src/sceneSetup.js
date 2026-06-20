@@ -27,6 +27,10 @@ export function setupThree() {
     MIDDLE: THREE.MOUSE.DOLLY,
     RIGHT: THREE.MOUSE.ROTATE,
   };
+  S.controls.touches = {
+    ONE: THREE.TOUCH.PAN,
+    TWO: THREE.TOUCH.DOLLY_ROTATE,
+  };
   S.controls.maxPolarAngle = Math.PI * 0.48;
   S.controls.target.set(0, 0, 0);
   S.renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());

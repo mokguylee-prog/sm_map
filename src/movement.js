@@ -75,7 +75,7 @@ export function onPointerDown(event) {
 }
 
 export function onPointerUp(event) {
-  if (event.button !== 0) return;
+  if (event.button !== 0 && event.type !== "pointercancel") return;
   S.mapPanPointerDown = false;
   if (S.mapPanDragging) S.mapPanSettleFrames = 12;
   S.mapPanDragging = false;
@@ -122,12 +122,23 @@ export function onTerrainWheel(event) {
 
   lastWheelZoomTime = now;
   const cursorPosition = terrainLatLonFromPointer(event);
+  changeTerrainZoom(nextZoom, cursorPosition, cursorPosition ? " (커서 기준)" : "");
+}
+
+export function zoomTerrainBy(delta) {
+  const currentZoom = clamp(Math.round(Number(els.zoom.value)), MIN_ZOOM, MAX_ZOOM);
+  const nextZoom = clamp(currentZoom + delta, MIN_ZOOM, MAX_ZOOM);
+  if (nextZoom === currentZoom) return;
+  changeTerrainZoom(nextZoom, null, " (버튼)");
+}
+
+function changeTerrainZoom(nextZoom, cursorPosition, statusSuffix) {
   if (cursorPosition) {
     els.lat.value = clamp(cursorPosition.lat, -85, 85).toFixed(6);
     els.lon.value = cursorPosition.lon.toFixed(6);
   }
   els.zoom.value = nextZoom;
-  setStatus(`줌 변경: z${nextZoom} 주변 타일 준비 중${cursorPosition ? " (커서 기준)" : ""}...`);
+  setStatus(`줌 변경: z${nextZoom} 주변 타일 준비 중${statusSuffix}...`);
   window.clearTimeout(S.zoomReloadTimer);
   S.zoomReloadTimer = window.setTimeout(() => {
     loadTerrain({ resetOrigin: true, keepCamera: true });

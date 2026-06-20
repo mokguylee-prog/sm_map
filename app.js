@@ -32,6 +32,7 @@ import {
   onClickMove,
   updateMovement,
   updateMapPanNavigation,
+  zoomTerrainBy,
 } from "./src/movement.js";
 import { fillBboxFromCurrent, downloadBbox } from "./src/download.js";
 import { registerTileCacheWorker, tileCacheCount, clearTileCache } from "./src/tileCachePersist.js";
@@ -102,15 +103,19 @@ function bindEvents() {
     await clearTileCache();
     await updateCacheStatus();
   });
+  els.zoomIn.addEventListener("click", () => zoomTerrainBy(1));
+  els.zoomOut.addEventListener("click", () => zoomTerrainBy(-1));
   els.compass.addEventListener("click", resetCameraNorthTopDown);
   S.renderer.domElement.addEventListener("pointermove", onPointerMove);
   S.renderer.domElement.addEventListener("pointerdown", onPointerDown);
   S.renderer.domElement.addEventListener("pointerup", onPointerUp);
+  S.renderer.domElement.addEventListener("pointercancel", onPointerUp);
   S.renderer.domElement.addEventListener("click", onClickMove);
   S.renderer.domElement.addEventListener("wheel", onTerrainWheel, { passive: false });
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
   window.addEventListener("blur", () => pressedKeys.clear());
   [els.lat, els.lon, els.zoom, els.url].forEach((el) => {
     el.addEventListener("change", () => {

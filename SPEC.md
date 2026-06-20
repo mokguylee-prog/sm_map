@@ -91,6 +91,7 @@
 - 왼쪽 드래그: 지도 이동(pan). 화면 중심/관찰 위치의 위경도 입력값이 같이 갱신된다.
 - 오른쪽 드래그: 3D 지형 회전. 브라우저 컨텍스트 메뉴는 뜨지 않는다.
 - 휠: 커서 기준 확대/축소.
+- 모바일/터치: 한 손가락 드래그는 지도 이동, 두 손가락 제스처는 3D 회전, 화면 줌 버튼은 타일 줌 변경.
 - 왼쪽 짧은 클릭: 기존처럼 클릭 지점으로 이동. 드래그와 클릭은 tolerance로 구분한다.
 - 남북 방향 이동은 Web Mercator의 북/남 끝에서 더 이상 넘어가지 않게 clamp한다.
 - 동서 방향 이동은 경도 wrap을 허용한다.
@@ -98,6 +99,8 @@
 
 **구현 노트:**
 - `OrbitControls.mouseButtons`: `LEFT=PAN`, `RIGHT=ROTATE`, 휠 zoom은 앱의 타일 줌 로직이 담당.
+- `OrbitControls.touches`: `ONE=PAN`, `TWO=DOLLY_ROTATE`; 캔버스는 `touch-action:none`으로 브라우저 스크롤과 충돌하지 않게 한다.
+- 모바일 화면에서는 HUD/나침반/줌 버튼/패널이 서로 겹치지 않도록 별도 responsive layout을 둔다.
 - 매 프레임 controls update 뒤 카메라 target을 타일 좌표로 역변환해 `els.lat/lon`에 반영한다.
 - target.z → tileY는 `0..2^z` 범위로 clamp하고, target.x → tileX는 `2^z` 기준으로 wrap한다.
 - pan 중 `RECENTER_THRESHOLD_TILES`를 넘으면 `loadTerrain({ keepCamera:true, resetOrigin:false })`로 새 타일을 불러온다.

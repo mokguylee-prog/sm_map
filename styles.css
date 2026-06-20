@@ -23,6 +23,7 @@ body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
+  overscroll-behavior: none;
   /* 영문·한글을 한 폰트로 통일(맑은 고딕은 라틴 글리프도 포함). */
   font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR",
     system-ui, sans-serif;
@@ -52,6 +53,8 @@ select {
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none;
+  user-select: none;
 }
 
 .status-strip {
@@ -188,6 +191,29 @@ select {
   bottom: 18px;
   left: 50%;
   width: 1px;
+}
+
+.touch-controls {
+  position: absolute;
+  right: 18px;
+  bottom: 78px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.touch-controls button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-color: rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(21, 27, 25, 0.78);
+  font-size: 23px;
+  font-weight: 750;
+  line-height: 1;
+  backdrop-filter: blur(8px);
 }
 
 .panel {
@@ -345,9 +371,13 @@ button:disabled {
 
   .app-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: 62vh auto;
+    grid-template-rows: minmax(420px, 62dvh) auto;
     height: auto;
     min-height: 100vh;
+  }
+
+  .viewport {
+    min-height: 420px;
   }
 
   .panel {
@@ -365,8 +395,22 @@ button:disabled {
   .hud {
     top: 10px;
     left: 10px;
-    right: 10px;
-    grid-template-columns: 1fr;
+    right: auto;
+    width: min(100% - 110px, 420px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hud > div {
+    padding: 8px 9px;
+  }
+
+  .hud > div:last-child {
+    display: none;
+  }
+
+  .hud strong {
+    max-width: none;
+    font-size: 12px;
   }
 
   .compass {
@@ -374,5 +418,60 @@ button:disabled {
     height: 82px;
     top: 10px;
     right: 10px;
+  }
+
+  .touch-controls {
+    right: 10px;
+    bottom: 82px;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  input,
+  select,
+  button {
+    min-height: 42px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    grid-template-rows: minmax(360px, 58dvh) auto;
+  }
+
+  .viewport {
+    min-height: 360px;
+  }
+
+  .hud {
+    width: calc(100% - 104px);
+    gap: 6px;
+  }
+
+  .hud > div {
+    padding: 7px 8px;
+  }
+
+  .hud-label {
+    margin-bottom: 2px;
+    font-size: 10px;
+  }
+
+  .status-strip {
+    gap: 6px;
+    padding: 8px 9px;
+    font-size: 11px;
+  }
+
+  .control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .button-row > button,
+  .preset-row button {
+    flex: 1 1 132px;
   }
 }

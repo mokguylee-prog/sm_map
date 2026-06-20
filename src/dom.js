@@ -15,6 +15,8 @@ export const els = {
   lat: document.querySelector("#latInput"),
   lon: document.querySelector("#lonInput"),
   zoom: document.querySelector("#zoomInput"),
+  zoomIn: document.querySelector("#zoomInButton"),
+  zoomOut: document.querySelector("#zoomOutButton"),
   exaggeration: document.querySelector("#exaggerationInput"),
   load: document.querySelector("#loadButton"),
   locate: document.querySelector("#locateButton"),
