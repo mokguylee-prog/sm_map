@@ -38,6 +38,9 @@ function terrainLatLonFromPointer(event) {
 }
 
 export function onPointerMove(event) {
+  if (S.mapPanPointerDown && Math.hypot(event.clientX - pointerDownX, event.clientY - pointerDownY) > CLICK_DRAG_TOLERANCE) {
+    S.mapPanDragging = true;
+  }
   if (!S.terrain || !S.currentGrid) return;
   const rect = S.renderer.domElement.getBoundingClientRect();
   const pointer = new THREE.Vector2(
@@ -66,6 +69,16 @@ export function onPointerDown(event) {
   pointerDownX = event.clientX;
   pointerDownY = event.clientY;
   pointerDownButton = event.button;
+  S.mapPanPointerDown = event.button === 0;
+  S.mapPanDragging = false;
+  S.mapPanSettleFrames = 0;
+}
+
+export function onPointerUp(event) {
+  if (event.button !== 0) return;
+  S.mapPanPointerDown = false;
+  if (S.mapPanDragging) S.mapPanSettleFrames = 12;
+  S.mapPanDragging = false;
 }
 
 export function onClickMove(event) {
@@ -119,6 +132,41 @@ export function onTerrainWheel(event) {
   S.zoomReloadTimer = window.setTimeout(() => {
     loadTerrain({ resetOrigin: true, keepCamera: true });
   }, ZOOM_DEBOUNCE_MS);
+}
+
+export function updateMapPanNavigation() {
+  if ((!S.mapPanDragging && S.mapPanSettleFrames <= 0) || !S.currentTile || !S.worldOriginTileFloat || !S.controls) {
+    return;
+  }
+  if (!S.mapPanDragging) S.mapPanSettleFrames -= 1;
+
+  const z = Number(els.zoom.value);
+  const limit = 2 ** z;
+  const tileWorld = tileWorldSize();
+  const rawTileX = S.worldOriginTileFloat.x + S.controls.target.x / tileWorld;
+  const tileX = ((rawTileX % limit) + limit) % limit;
+  const tileY = clamp(S.worldOriginTileFloat.y + S.controls.target.z / tileWorld, 0, limit);
+  const next = tileFloatToLatLon(tileX, tileY, z);
+
+  els.lat.value = clamp(next.lat, -85, 85).toFixed(6);
+  els.lon.value = next.lon.toFixed(6);
+  S.movementDirty = true;
+  updatePlayerMarker({ followCamera: false });
+  setStatus(`이동 중: ${next.lat.toFixed(5)}, ${next.lon.toFixed(5)} (드래그)`);
+
+  const anchorOffset = tileOffsetFromAnchor({ x: tileX, y: tileY }, S.currentTile);
+  if (
+    Math.abs(anchorOffset.x) <= RECENTER_THRESHOLD_TILES &&
+    Math.abs(anchorOffset.y) <= RECENTER_THRESHOLD_TILES
+  ) {
+    return;
+  }
+
+  if (S.panReloadTimer) return;
+  S.panReloadTimer = window.setTimeout(() => {
+    S.panReloadTimer = 0;
+    loadTerrain({ keepCamera: true, resetOrigin: false });
+  }, 80);
 }
 
 export function updateMovement(deltaSeconds) {

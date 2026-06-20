@@ -3,9 +3,10 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { TILE_WORLD } from "./config.js";
 import { els } from "./dom.js";
 import { S } from "./state.js";
-import { roundRect } from "./utils.js";
+import { clamp, roundRect } from "./utils.js";
 
 export function setupThree() {
   S.scene = new THREE.Scene();
@@ -21,8 +22,14 @@ export function setupThree() {
   S.controls = new OrbitControls(S.camera, S.renderer.domElement);
   S.controls.enableDamping = true;
   S.controls.enableZoom = false; // 휠은 타일 줌 변경에 사용
+  S.controls.mouseButtons = {
+    LEFT: THREE.MOUSE.PAN,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT: THREE.MOUSE.ROTATE,
+  };
   S.controls.maxPolarAngle = Math.PI * 0.48;
   S.controls.target.set(0, 0, 0);
+  S.renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
 
   const sun = new THREE.DirectionalLight(0xfff1ce, 3.6);
   sun.position.set(-1200, 1800, 900);
@@ -178,6 +185,26 @@ export function updateCompass() {
   direction.normalize();
   const angle = Math.atan2(direction.x, -direction.z);
   els.compassNeedle.style.transform = `translateX(-50%) rotate(${angle}rad)`;
+}
+
+export function constrainMapPanToPoles() {
+  if (!S.camera || !S.controls || !S.worldOriginTileFloat) return;
+  const tileLimit = 2 ** S.worldOriginTileFloat.z;
+  const worldWidth = tileLimit * TILE_WORLD;
+  if (S.controls.target.x > worldWidth / 2) {
+    S.controls.target.x -= worldWidth;
+    S.camera.position.x -= worldWidth;
+  } else if (S.controls.target.x < -worldWidth / 2) {
+    S.controls.target.x += worldWidth;
+    S.camera.position.x += worldWidth;
+  }
+  const minZ = (0 - S.worldOriginTileFloat.y) * TILE_WORLD;
+  const maxZ = (tileLimit - S.worldOriginTileFloat.y) * TILE_WORLD;
+  const clampedZ = clamp(S.controls.target.z, minZ, maxZ);
+  const deltaZ = clampedZ - S.controls.target.z;
+  if (deltaZ === 0) return;
+  S.controls.target.z = clampedZ;
+  S.camera.position.z += deltaZ;
 }
 
 // 나침반 클릭 시: 현재 타깃을 기준으로 북쪽 정렬 + 수직 top-down 뷰로 리셋한다.

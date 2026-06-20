@@ -23,6 +23,9 @@ import { tileWorldSize, tileOffsetFromOrigin } from "./positioning.js";
 
 export async function loadTerrain(options = {}) {
   const version = ++S.loadVersion;
+  S.loadAbortController?.abort();
+  const abortController = new AbortController();
+  S.loadAbortController = abortController;
   window.clearTimeout(S.refineTimer); // 새 로드 시작 → 대기 중인 정밀화 취소
   const lat = clamp(Number(els.lat.value), -85, 85);
   const lon = wrapLon(Number(els.lon.value));
@@ -110,7 +113,7 @@ export async function loadTerrain(options = {}) {
     };
 
     // 중심 타일부터 들어오는 대로 먼저 표시한다.
-    const grid = await loadTerrainPatch(tile, z, plan, handlePartial);
+    const grid = await loadTerrainPatch(tile, z, plan, handlePartial, { signal: abortController.signal });
     if (partialTimer) window.clearTimeout(partialTimer);
     if (version !== S.loadVersion) return;
 
@@ -141,9 +144,17 @@ export async function loadTerrain(options = {}) {
     setStatus(missingText);
 
     // 화면이 멈춰 있으면 같은 패치를 더 촘촘히 다시 디코딩해 고해상으로 정밀화한다.
+    if (S.loadAbortController === abortController) {
+      S.loadAbortController = null;
+    }
     scheduleRefine(tile, z, plan, version);
   } catch (error) {
+    if (abortController.signal.aborted) return;
     setStatus(`타일 로딩 실패: ${error.message}`);
+  } finally {
+    if (S.loadAbortController === abortController) {
+      S.loadAbortController = null;
+    }
   }
 }
 
@@ -195,7 +206,7 @@ export function updatePatchPosition() {
   updatePlaceLabels();
 }
 
-export function updatePlayerMarker() {
+export function updatePlayerMarker(options = {}) {
   if (!S.playerMarker || !S.currentTile || !S.worldOriginTileFloat) return;
   const z = Number(els.zoom.value);
   const pos = latLonToTileFloat(Number(els.lat.value), Number(els.lon.value), z);
@@ -214,6 +225,7 @@ export function updatePlayerMarker() {
     Math.max(28, (h - waterLevel) * Number(els.exaggeration.value) + 42),
     worldZ,
   );
+  if (options.followCamera === false) return;
   const desiredTarget = new THREE.Vector3(x, S.playerMarker.position.y, worldZ);
   const cameraFollowDelta = desiredTarget.clone().sub(S.controls.target).multiplyScalar(0.18);
   S.controls.target.add(cameraFollowDelta);

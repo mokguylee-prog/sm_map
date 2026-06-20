@@ -35,8 +35,15 @@ export const S = {
   lastFrameTime: 0,
   movementDirty: false,
   zoomReloadTimer: 0,
+  panReloadTimer: 0,
   refineTimer: 0,
+  loadAbortController: null,
   animationFrame: 0,
+
+  // Pointer-driven map pan
+  mapPanPointerDown: false,
+  mapPanDragging: false,
+  mapPanSettleFrames: 0,
 };
 
 export const pressedKeys = new Set();

@@ -19,7 +19,7 @@ import { SOURCES } from "./src/config.js";
 import { els, setStatus } from "./src/dom.js";
 import { S, pressedKeys } from "./src/state.js";
 import { saveState, loadState } from "./src/storage.js";
-import { setupThree, updateCompass, resetCameraNorthTopDown } from "./src/sceneSetup.js";
+import { setupThree, updateCompass, resetCameraNorthTopDown, constrainMapPanToPoles } from "./src/sceneSetup.js";
 import { buildPlaceLabels } from "./src/labels.js";
 import { loadTerrain, applyExaggeration } from "./src/terrainLoader.js";
 import {
@@ -28,8 +28,10 @@ import {
   onTerrainWheel,
   onPointerMove,
   onPointerDown,
+  onPointerUp,
   onClickMove,
   updateMovement,
+  updateMapPanNavigation,
 } from "./src/movement.js";
 import { fillBboxFromCurrent, downloadBbox } from "./src/download.js";
 import { registerTileCacheWorker, tileCacheCount, clearTileCache } from "./src/tileCachePersist.js";
@@ -103,10 +105,12 @@ function bindEvents() {
   els.compass.addEventListener("click", resetCameraNorthTopDown);
   S.renderer.domElement.addEventListener("pointermove", onPointerMove);
   S.renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  S.renderer.domElement.addEventListener("pointerup", onPointerUp);
   S.renderer.domElement.addEventListener("click", onClickMove);
   S.renderer.domElement.addEventListener("wheel", onTerrainWheel, { passive: false });
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("pointerup", onPointerUp);
   window.addEventListener("blur", () => pressedKeys.clear());
   [els.lat, els.lon, els.zoom, els.url].forEach((el) => {
     el.addEventListener("change", () => {
@@ -158,6 +162,8 @@ function animate() {
     fillBboxFromCurrent();
   }
   S.controls.update();
+  constrainMapPanToPoles();
+  updateMapPanNavigation();
   updateCompass();
   S.renderer.render(S.scene, S.camera);
 }

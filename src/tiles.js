@@ -27,12 +27,12 @@ export function tileUrl(x, y, z) {
   return els.url.value.replaceAll("{z}", z).replaceAll("{x}", x).replaceAll("{y}", y);
 }
 
-export async function fetchTileImageData(x, y, z) {
+export async function fetchTileImageData(x, y, z, signal) {
   const url = tileUrl(x, y, z);
   const cached = cacheGet(url);
   if (cached) return cached;
 
-  const response = await fetch(url, { mode: "cors" });
+  const response = await fetch(url, { mode: "cors", signal });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -127,7 +127,7 @@ function patchSnapshot(state) {
   };
 }
 
-export async function loadTerrainPatch(centerTile, z, plan, onPartial) {
+export async function loadTerrainPatch(centerTile, z, plan, onPartial, options = {}) {
   const { width: patchWidth, negative: patchNegative, positive: patchPositive, samples: tileSamples, worldSize } = plan;
   const patchTiles = buildPatchTiles(centerTile, z, patchNegative, patchPositive);
   const samples = tileSamples * patchWidth - (patchWidth - 1);
@@ -145,17 +145,19 @@ export async function loadTerrainPatch(centerTile, z, plan, onPartial) {
 
   let nextIndex = 0;
   async function worker() {
-    while (nextIndex < patchTiles.length) {
+    while (nextIndex < patchTiles.length && !options.signal?.aborted) {
       const tile = patchTiles[nextIndex];
       nextIndex += 1;
       try {
-        const imageData = await fetchTileImageData(tile.x, tile.y, z);
+        const imageData = await fetchTileImageData(tile.x, tile.y, z, options.signal);
+        if (options.signal?.aborted) return;
         const grid = decodeGrid(imageData, tileSamples);
         stitchTile(tile, grid, tileSamples, samples, patchNegative, state.heights);
         state.min = Math.min(state.min, grid.min);
         state.max = Math.max(state.max, grid.max);
         state.loadedTiles += 1;
       } catch {
+        if (options.signal?.aborted) return;
         // 없는 타일은 0m 평면으로 남겨두고, 들어온 타일부터 먼저 보여준다.
       }
       state.settledTiles += 1;

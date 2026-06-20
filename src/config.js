@@ -17,12 +17,12 @@ export const PATCH_CENTER_OFFSET = 1;
 // 모두 짝수 폭 + negative = width/2 - 1 → 패치 중심 오프셋이 항상 1로 유지된다.
 // samples=초기(빠른) 타일당 샘플, refineSamples=화면이 멈춰 있을 때 올릴 고해상 샘플.
 export function patchPlanForZoom(z) {
-  if (z >= 14) return makePlan(6, 129, 193);
-  if (z >= 12) return makePlan(6, 97, 161);
-  if (z >= 9) return makePlan(8, 65, 121);
-  if (z >= 7) return makePlan(10, 49, 89);
-  if (z >= 5) return makePlan(12, 41, 61);
-  return makePlan(14, 33, 45);
+  if (z >= 14) return makePlan(6, 65, 193);
+  if (z >= 12) return makePlan(6, 57, 161);
+  if (z >= 9) return makePlan(8, 41, 121);
+  if (z >= 7) return makePlan(10, 33, 89);
+  if (z >= 5) return makePlan(12, 29, 61);
+  return makePlan(14, 25, 45);
 }
 
 function makePlan(width, samples, refineSamples) {
@@ -39,14 +39,14 @@ function makePlan(width, samples, refineSamples) {
 
 // 확대 후 화면이 이 시간(ms)만큼 멈춰 있으면 고해상으로 정밀화한다.
 export const REFINE_DELAY_MS = 900;
-export const STREAM_RENDER_THROTTLE_MS = 300;
-export const TILE_FETCH_CONCURRENCY = 8;
+export const STREAM_RENDER_THROTTLE_MS = 120;
+export const TILE_FETCH_CONCURRENCY = 16;
 
 export const MOVE_TILES_PER_SECOND = 0.85;
 export const RECENTER_THRESHOLD_TILES = 2.25;
-export const ZOOM_DEBOUNCE_MS = 260;
+export const ZOOM_DEBOUNCE_MS = 60;
 // 휠 줌 쿨다운(ms). 이 시간 안에 들어온 추가 휠 이벤트는 무시해 줌을 둔감하게 한다.
-export const WHEEL_ZOOM_COOLDOWN_MS = 240;
+export const WHEEL_ZOOM_COOLDOWN_MS = 150;
 export const MIN_ZOOM = 3;
 export const MAX_ZOOM = 15;
 
