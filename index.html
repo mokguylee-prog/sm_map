@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>이상목지형탐색기</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/",
+          "jszip": "https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm"
+        }
+      }
+    </script>
+  </head>
+  <body data-app-ready="false">
+    <main class="app-shell">
+      <section class="viewport" aria-label="3D 지형 뷰어">
+        <canvas id="terrainCanvas"></canvas>
+        <div class="hud">
+          <div>
+            <span class="hud-label">타일</span>
+            <strong id="tileHud">-</strong>
+          </div>
+          <div>
+            <span class="hud-label">고도</span>
+            <strong id="rangeHud">-</strong>
+          </div>
+          <div>
+            <span class="hud-label">해상도</span>
+            <strong id="resolutionHud">-</strong>
+          </div>
+          <div>
+            <span class="hud-label">수신</span>
+            <strong id="coverageHud">-</strong>
+          </div>
+        </div>
+        <div class="compass" aria-label="방위표 (클릭: 북쪽 수직 뷰)" title="북쪽 정렬 + 수직 내려다보기" role="button" tabindex="0">
+          <span class="north">N</span>
+          <span class="east">E</span>
+          <span class="south">S</span>
+          <span class="west">W</span>
+          <span class="needle"></span>
+        </div>
+        <div class="touch-controls" aria-label="해상도 및 지도 확대 축소">
+          <div class="resolution-control" aria-label="해상도 조절">
+            <span class="resolution-control-value" id="resolutionSliderValue">100%</span>
+            <input id="resolutionInput" type="range" min="50" max="200" step="10" value="100" aria-label="해상도 조절" title="해상도 조절">
+            <span class="resolution-control-icon" aria-hidden="true">해상도</span>
+          </div>
+          <button id="zoomInButton" type="button" aria-label="확대">+</button>
+          <button id="zoomOutButton" type="button" aria-label="축소">-</button>
+        </div>
+        <div class="mobile-signature">월평동 이상목</div>
+        <button class="menu-toggle" id="menuToggleButton" type="button" aria-controls="controlPanel" aria-expanded="false">메뉴</button>
+        <div class="status-strip">
+          <span id="statusText">초기화 중...</span>
+          <span id="netReadout" title="실제 네트워크 수신·송신량과 캐시 재사용량">네트워크 ↓ 0 B · ↑ 0 B · 캐시 0 B</span>
+          <span id="heightReadout">height_m: -</span>
+        </div>
+      </section>
+
+      <div class="panel-backdrop" id="panelBackdrop"></div>
+      <button class="panel-close" id="panelCloseButton" type="button" aria-label="메뉴 닫기">닫기</button>
+      <aside class="panel" id="controlPanel" aria-label="지형 조작 패널">
+        <header class="panel-header">
+          <h1>이상목지형탐색기</h1>
+          <p>현재 위치 주변 테라리움 타일을 이어 붙여 3D 지형판으로 탐색합니다.</p>
+        </header>
+
+        <label class="font-size-control">
+          <span>지형 라벨 크기</span>
+          <input id="labelScaleInput" type="range" min="1" max="1.8" step="0.1" value="1" aria-label="3D 지형 라벨 크기 조절">
+        </label>
+
+        <label class="terrain-emphasis-control">
+          <span>지형 강조</span>
+          <input id="exaggerationInput" type="range" min="0.01" max="0.5" step="0.01">
+        </label>
+
+        <div class="control-grid">
+          <label>
+            <span>데이터 소스</span>
+            <select id="sourceSelect">
+              <option value="aws">AWS 오픈 지형타일 (png)</option>
+              <option value="mapterhorn">맵터호른 (webp)</option>
+              <option value="custom">사용자 지정 URL</option>
+            </select>
+          </label>
+
+          <label class="full">
+            <span>URL 템플릿</span>
+            <input id="urlTemplate" type="text" spellcheck="false">
+          </label>
+
+          <label>
+            <span>위도</span>
+            <input id="latInput" type="number" step="0.000001">
+          </label>
+
+          <label>
+            <span>경도</span>
+            <input id="lonInput" type="number" step="0.000001">
+          </label>
+
+          <label>
+            <span>줌</span>
+            <input id="zoomInput" type="number" min="3" max="15" step="1">
+          </label>
+
+        </div>
+
+        <div class="button-row">
+          <button id="loadButton" type="button">불러오기</button>
+          <button id="locateButton" type="button">현재 위치</button>
+        </div>
+
+        <div class="preset-row" id="presetRow" aria-label="위치 프리셋"></div>
+
+        <section class="download-box" aria-label="범위 일괄 다운로드">
+          <h2>범위 ZIP 다운로드</h2>
+          <div class="control-grid compact">
+            <label>
+              <span>남</span>
+              <input id="southInput" type="number" step="0.000001">
+            </label>
+            <label>
+              <span>서</span>
+              <input id="westInput" type="number" step="0.000001">
+            </label>
+            <label>
+              <span>북</span>
+              <input id="northInput" type="number" step="0.000001">
+            </label>
+            <label>
+              <span>동</span>
+              <input id="eastInput" type="number" step="0.000001">
+            </label>
+          </div>
+          <div class="button-row">
+            <button id="fillBboxButton" type="button">현재 화면 기준</button>
+            <button id="downloadButton" type="button">ZIP 받기</button>
+          </div>
+          <div class="progress">
+            <div id="progressBar"></div>
+          </div>
+          <p id="downloadStatus">대기 중</p>
+        </section>
+
+        <section class="cache-box" aria-label="타일 캐시">
+          <h2>타일 캐시</h2>
+          <div class="button-row">
+            <button id="clearCacheButton" type="button">캐시 비우기</button>
+            <button id="clearNetButton" type="button">통신량 초기화</button>
+          </div>
+          <p id="cacheStatus">캐시: -</p>
+        </section>
+      </aside>
+    </main>
+
+    <script>
+      window.addEventListener("error", function (event) {
+        var status = document.querySelector("#statusText");
+        if (status && document.body.dataset.appReady !== "true") {
+          status.textContent = "앱 시작 실패: " + event.message;
+        }
+      });
+      window.addEventListener("unhandledrejection", function (event) {
+        var status = document.querySelector("#statusText");
+        if (status) {
+          status.textContent = "앱 실행 오류: " + (event.reason && event.reason.message ? event.reason.message : event.reason);
+        }
+      });
+      window.setTimeout(function () {
+        var status = document.querySelector("#statusText");
+        if (status && document.body.dataset.appReady !== "true") {
+          status.textContent =
+            "앱 모듈이 실행되지 않았습니다. file:// 이 아니라 로컬 HTTP 서버로 열어주세요 (예: python -m http.server).";
+        }
+      }, 1800);
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

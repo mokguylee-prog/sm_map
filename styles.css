@@ -1,0 +1,670 @@
+:root {
+  color-scheme: dark;
+  --bg: #111414;
+  --panel: #171d1d;
+  --panel-2: #202928;
+  --line: #3a4845;
+  --text: #edf4f1;
+  --muted: #a8b5b0;
+  --accent: #42c58a;
+  --accent-2: #f0c766;
+  --danger: #f06d6d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  overscroll-behavior: none;
+  /* 영문·한글을 한 폰트로 통일(맑은 고딕은 라틴 글리프도 포함). */
+  font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR",
+    system-ui, sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  width: 100vw;
+  height: 100vh;
+}
+
+.viewport {
+  position: relative;
+  min-width: 0;
+  background:
+    linear-gradient(180deg, #8fb5c6 0%, #c8d5c9 42%, #7d8d73 68%, #2f3a2f 100%);
+}
+
+#terrainCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+}
+
+.status-strip {
+  position: absolute;
+  left: 16px;
+  /* 오른쪽 확대/축소·해상도 컨트롤 영역(약 62px)을 침범하지 않도록 여백을 둔다. */
+  right: 78px;
+  bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(21, 27, 25, 0.78);
+  color: var(--text);
+  backdrop-filter: blur(8px);
+}
+
+#netReadout {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+.hud {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(112px, auto));
+  gap: 8px;
+}
+
+.hud > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(21, 27, 25, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.hud-label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.hud strong {
+  display: block;
+  max-width: 190px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compass {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 112px;
+  height: 112px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: rgba(21, 27, 25, 0.72);
+  color: var(--text);
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+
+.compass:hover {
+  border-color: var(--accent-2);
+}
+
+.compass span {
+  position: absolute;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.compass .north {
+  top: 9px;
+  left: 50%;
+  color: var(--accent-2);
+  transform: translateX(-50%);
+}
+
+.compass .east {
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+}
+
+.compass .south {
+  bottom: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.compass .west {
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+}
+
+.compass .needle {
+  top: 19px;
+  left: 50%;
+  width: 2px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--accent-2);
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+}
+
+.compass::before,
+.compass::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.compass::before {
+  top: 50%;
+  left: 18px;
+  right: 18px;
+  height: 1px;
+}
+
+.compass::after {
+  top: 18px;
+  bottom: 18px;
+  left: 50%;
+  width: 1px;
+}
+
+.touch-controls {
+  position: absolute;
+  right: 18px;
+  bottom: 78px;
+  z-index: 5; /* 상태 표시줄(.status-strip) 위에 항상 보이도록 */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.touch-controls button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-color: rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(21, 27, 25, 0.78);
+  font-size: 23px;
+  font-weight: 750;
+  line-height: 1;
+  backdrop-filter: blur(8px);
+}
+
+.resolution-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 44px;
+  padding: 9px 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(21, 27, 25, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.resolution-control input[type="range"] {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 22px;
+  height: 104px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--accent-2);
+  cursor: pointer;
+}
+
+.resolution-control-value {
+  color: var(--accent-2);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.resolution-control-icon {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.3px;
+}
+
+.menu-toggle {
+  display: none;
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  min-width: 74px;
+  min-height: 44px;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(21, 27, 25, 0.86);
+  font-weight: 750;
+  backdrop-filter: blur(8px);
+}
+
+.mobile-signature {
+  display: none;
+  position: absolute;
+  right: 10px;
+  bottom: 60px;
+  max-width: 140px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(21, 27, 25, 0.78);
+  color: var(--accent-2);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+.panel-backdrop {
+  display: none;
+}
+
+.panel-close {
+  display: none;
+  border-color: #65dba2;
+  background: #20845b;
+  color: #ffffff;
+}
+
+.panel-close:hover {
+  border-color: #8ce8ba;
+  background: #289b6c;
+}
+
+.panel {
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+  padding: 18px;
+  border-left: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(66, 197, 138, 0.06), transparent 190px),
+    var(--panel);
+  font-size: 12px;
+}
+
+.panel-header h1 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.panel-header {
+  position: relative;
+}
+
+.panel-header p {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.control-grid.compact {
+  gap: 10px;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: var(--panel-2);
+  color: var(--text);
+  outline: none;
+  font-size: 12px;
+}
+
+input:focus,
+select:focus,
+button:focus-visible {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 3px rgba(103, 174, 240, 0.16);
+}
+
+input[type="range"] {
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.button-row,
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 10px;
+  background: #293331;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+button:hover {
+  border-color: var(--accent-2);
+  background: #333d39;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.preset-row button {
+  flex: 1 1 92px;
+  color: #dfe9e5;
+}
+
+.download-box,
+.cache-box {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.download-box h2,
+.cache-box h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.cache-box p {
+  margin: 10px 0 0;
+  opacity: 0.8;
+  font-size: 12px;
+}
+
+.progress {
+  height: 10px;
+  margin-top: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #0f1413;
+}
+
+#progressBar {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 120ms ease-out;
+}
+
+#downloadStatus {
+  margin: 8px 0 0;
+  min-height: 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 메뉴 상단 지형 표시 조절 슬라이더 */
+.font-size-control,
+.terrain-emphasis-control {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.font-size-control {
+  margin-bottom: 10px;
+}
+
+.terrain-emphasis-control {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.font-size-control > span,
+.terrain-emphasis-control > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.font-size-control > input[type="range"],
+.terrain-emphasis-control > input[type="range"] {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+@media (max-width: 900px) {
+  body {
+    overflow: hidden;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .viewport {
+    min-height: 0;
+  }
+
+  .panel {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .status-strip {
+    flex-direction: column;
+    left: 10px;
+    right: 96px;
+    bottom: 10px;
+  }
+
+  .hud {
+    top: 10px;
+    left: 10px;
+    right: auto;
+    width: min(100% - 110px, 420px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hud > div {
+    padding: 8px 9px;
+  }
+
+  .hud strong {
+    max-width: none;
+    font-size: 12px;
+  }
+
+  .compass {
+    width: 82px;
+    height: 82px;
+    top: 10px;
+    right: 10px;
+  }
+
+  /* 모바일에서도 해상도와 확대/축소 컨트롤을 항상 표시한다. */
+  .touch-controls {
+    display: flex;
+    right: 10px;
+    bottom: 66px;
+  }
+
+  .menu-toggle {
+    display: block;
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .mobile-signature {
+    display: block;
+  }
+
+  .panel {
+    position: fixed;
+    z-index: 30;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: min(78dvh, 620px);
+    padding: 16px 14px max(18px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -18px 36px rgba(0, 0, 0, 0.34);
+    transform: translateY(calc(100% + 12px));
+    transition: transform 180ms ease-out;
+  }
+
+  .panel-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    display: block;
+    background: rgba(0, 0, 0, 0.36);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease-out;
+  }
+
+  body.panel-open .panel {
+    transform: translateY(0);
+  }
+
+  body.panel-open .panel-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .panel-close {
+    position: fixed;
+    z-index: 31;
+    right: 14px;
+    bottom: calc(min(78dvh, 620px) - 55px);
+    display: block;
+    min-height: 34px;
+    padding: 6px 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease-out;
+  }
+
+  body.panel-open .panel-close {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .panel-header {
+    padding-right: 64px;
+  }
+
+  input,
+  select,
+  button {
+    min-height: 42px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    grid-template-rows: 1fr;
+  }
+
+  .viewport {
+    min-height: 0;
+  }
+
+  .hud {
+    width: calc(100% - 104px);
+    gap: 6px;
+  }
+
+  .hud > div {
+    padding: 7px 8px;
+  }
+
+  .hud-label {
+    margin-bottom: 2px;
+    font-size: 10px;
+  }
+
+  .status-strip {
+    gap: 6px;
+    padding: 8px 9px;
+    font-size: 11px;
+  }
+
+  .control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .button-row > button,
+  .preset-row button {
+    flex: 1 1 132px;
+  }
+}

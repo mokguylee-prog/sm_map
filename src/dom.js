@@ -1,0 +1,47 @@
+// DOM 요소 참조와 상태 텍스트 헬퍼.
+
+export const els = {
+  canvas: document.querySelector("#terrainCanvas"),
+  status: document.querySelector("#statusText"),
+  net: document.querySelector("#netReadout"),
+  height: document.querySelector("#heightReadout"),
+  tileHud: document.querySelector("#tileHud"),
+  rangeHud: document.querySelector("#rangeHud"),
+  resolutionHud: document.querySelector("#resolutionHud"),
+  coverageHud: document.querySelector("#coverageHud"),
+  compass: document.querySelector(".compass"),
+  compassNeedle: document.querySelector(".compass .needle"),
+  menuToggle: document.querySelector("#menuToggleButton"),
+  panel: document.querySelector("#controlPanel"),
+  panelBackdrop: document.querySelector("#panelBackdrop"),
+  panelClose: document.querySelector("#panelCloseButton"),
+  source: document.querySelector("#sourceSelect"),
+  url: document.querySelector("#urlTemplate"),
+  lat: document.querySelector("#latInput"),
+  lon: document.querySelector("#lonInput"),
+  zoom: document.querySelector("#zoomInput"),
+  zoomIn: document.querySelector("#zoomInButton"),
+  zoomOut: document.querySelector("#zoomOutButton"),
+  resolution: document.querySelector("#resolutionInput"),
+  resolutionSliderValue: document.querySelector("#resolutionSliderValue"),
+  exaggeration: document.querySelector("#exaggerationInput"),
+  labelScale: document.querySelector("#labelScaleInput"),
+  load: document.querySelector("#loadButton"),
+  locate: document.querySelector("#locateButton"),
+  presetRow: document.querySelector("#presetRow"),
+  south: document.querySelector("#southInput"),
+  west: document.querySelector("#westInput"),
+  north: document.querySelector("#northInput"),
+  east: document.querySelector("#eastInput"),
+  fillBbox: document.querySelector("#fillBboxButton"),
+  download: document.querySelector("#downloadButton"),
+  progress: document.querySelector("#progressBar"),
+  downloadStatus: document.querySelector("#downloadStatus"),
+  clearCache: document.querySelector("#clearCacheButton"),
+  clearNet: document.querySelector("#clearNetButton"),
+  cacheStatus: document.querySelector("#cacheStatus"),
+};
+
+export function setStatus(message) {
+  els.status.textContent = message;
+}
