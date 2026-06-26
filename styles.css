@@ -128,35 +128,43 @@ select {
 
 .view-toggles {
   position: absolute;
-  top: 14px;
+  /* HUD(상단) 아래에 배치. */
+  top: 74px;
   left: 18px;
   z-index: 14;
   display: flex;
-  gap: 10px;
-  padding: 7px 11px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 6px 9px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   background: rgba(21, 27, 25, 0.78);
   backdrop-filter: blur(8px);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .view-toggles label {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 5px;
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
 }
 
-.view-toggles input {
+.view-toggles input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  flex: none;
   accent-color: var(--accent);
   cursor: pointer;
 }
 
 .hud {
   position: absolute;
-  top: 58px;
+  top: 18px;
   left: 18px;
   display: grid;
   grid-template-columns: repeat(4, minmax(112px, auto));
@@ -697,17 +705,18 @@ button:disabled {
     bottom: 10px;
   }
 
-  .view-toggles {
-    top: 10px;
-    left: 10px;
-  }
-
   .hud {
-    top: 52px;
+    top: 10px;
     left: 10px;
     right: auto;
     width: min(calc(100% - 176px), 420px);
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* 모바일: HUD(2행)가 더 높으므로 토글을 그 아래로 더 내린다. */
+  .view-toggles {
+    top: 112px;
+    left: 10px;
   }
 
   .hud > div {
