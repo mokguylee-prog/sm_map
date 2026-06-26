@@ -11,6 +11,7 @@ export const S = {
 
   // 씬 오브젝트
   terrain: null,
+  terrainBackfill: null,
   directionGroup: null,
   tileBoundaryGroup: null,
   gridHelper: null,
@@ -30,6 +31,9 @@ export const S = {
 
   // 지형/위치 상태
   currentGrid: null,
+  backfillGrid: null,
+  backfillTile: null,
+  backfillScale: 1,
   currentTile: null,
   worldOriginTileFloat: null,
   lastGoodZoom: null, // 마지막으로 실제 지형이 렌더된 줌(무커버리지 줌에서 복귀용)

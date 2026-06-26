@@ -63,6 +63,8 @@ export const ZOOM_DEBOUNCE_MS = 60;
 export const WHEEL_ZOOM_COOLDOWN_MS = 150;
 export const MIN_ZOOM = 3;
 export const MAX_ZOOM = 15;
+export const NAV_LAT_MIN = -70;
+export const NAV_LAT_MAX = 72;
 
 export const STORAGE_KEY = "terrain-webapp-state-v1";
 

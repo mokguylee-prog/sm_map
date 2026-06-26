@@ -13,6 +13,47 @@ export function renderTerrain(grid, options = {}) {
     S.scene.remove(S.terrain);
   }
 
+  S.terrain = createTerrainMesh(grid, options);
+  S.scene.add(S.terrain);
+
+  if (!options.keepCamera) {
+    const heightRange = Math.round(grid.max - grid.min);
+    const player = S.playerMarker?.position ?? new THREE.Vector3();
+    S.controls.target.set(player.x, Math.max(0, heightRange * 0.35), player.z);
+    S.camera.position.lerp(
+      new THREE.Vector3(player.x, Math.max(1500, heightRange * 1.6), player.z + 2100),
+      0.55,
+    );
+  }
+}
+
+export function renderBackfillTerrain(grid) {
+  if (S.terrainBackfill) {
+    clearBackfillTerrain();
+  }
+
+  S.terrainBackfill = createTerrainMesh(grid, {
+    yOffset: -20,
+    depthTest: false,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
+  });
+  S.terrainBackfill.receiveShadow = false;
+  S.terrainBackfill.renderOrder = -10;
+  S.scene.add(S.terrainBackfill);
+}
+
+export function clearBackfillTerrain() {
+  if (!S.terrainBackfill) return;
+  S.terrainBackfill.geometry.dispose();
+  S.terrainBackfill.material.dispose();
+  S.scene.remove(S.terrainBackfill);
+  S.terrainBackfill = null;
+}
+
+function createTerrainMesh(grid, options = {}) {
   const size = grid.worldSize ?? S.worldSize;
   const geometry = new THREE.PlaneGeometry(size, size, grid.samples - 1, grid.samples - 1);
   geometry.rotateX(-Math.PI / 2);
@@ -23,7 +64,8 @@ export function renderTerrain(grid, options = {}) {
 
   for (let i = 0; i < positions.count; i += 1) {
     const h = grid.heights[i];
-    positions.setY(i, (h - waterLevel) * exaggeration);
+    const visibleHeight = Math.max(h, waterLevel);
+    positions.setY(i, (visibleHeight - waterLevel) * exaggeration + (options.yOffset ?? 0));
     const t = clamp((h - grid.min) / Math.max(1, grid.max - grid.min), 0, 1);
     colors.push(...terrainColor(t, h, grid));
   }
@@ -36,20 +78,15 @@ export function renderTerrain(grid, options = {}) {
     roughness: 0.82,
     metalness: 0.02,
     side: THREE.DoubleSide,
+    polygonOffset: options.polygonOffset ?? false,
+    polygonOffsetFactor: options.polygonOffsetFactor ?? 0,
+    polygonOffsetUnits: options.polygonOffsetUnits ?? 0,
+    depthTest: options.depthTest ?? true,
+    depthWrite: options.depthWrite ?? true,
   });
-  S.terrain = new THREE.Mesh(geometry, material);
-  S.terrain.receiveShadow = true;
-  S.scene.add(S.terrain);
-
-  if (!options.keepCamera) {
-    const heightRange = Math.round(grid.max - grid.min);
-    const player = S.playerMarker?.position ?? new THREE.Vector3();
-    S.controls.target.set(player.x, Math.max(0, heightRange * 0.35), player.z);
-    S.camera.position.lerp(
-      new THREE.Vector3(player.x, Math.max(1500, heightRange * 1.6), player.z + 2100),
-      0.55,
-    );
-  }
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 export function terrainColor(t, h, grid) {

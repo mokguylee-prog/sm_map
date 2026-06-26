@@ -5,22 +5,29 @@ import {
   PATCH_CENTER_OFFSET,
   MIN_ZOOM,
   MAX_ZOOM,
+  NAV_LAT_MAX,
+  NAV_LAT_MIN,
   patchPlanForZoom,
   scalePlanResolution,
   REFINE_DELAY_MS,
   STREAM_RENDER_THROTTLE_MS,
+  TILE_WORLD,
 } from "./config.js";
 import { els, setStatus } from "./dom.js";
 import { S, pressedKeys } from "./state.js";
 import { clamp, wrapLon } from "./utils.js";
 import { latLonToTile, latLonToTileFloat } from "./tileMath.js";
 import { loadTerrainPatch } from "./tiles.js";
-import { renderTerrain, sampleHeightAtWorld } from "./terrainMesh.js";
+import { clearBackfillTerrain, renderBackfillTerrain, renderTerrain, sampleHeightAtWorld } from "./terrainMesh.js";
 import { updatePlaceLabels } from "./labels.js";
 import { fillBboxFromCurrent } from "./download.js";
 import { saveState } from "./storage.js";
 import { rebuildFrame } from "./sceneSetup.js";
 import { tileWorldSize, tileOffsetFromOrigin } from "./positioning.js";
+
+const BACKFILL_ZOOM_DELTA = 3;
+const BACKFILL_WIDTH = 8;
+const BACKFILL_TILE_SAMPLES = 25;
 
 export async function loadTerrain(options = {}) {
   const version = ++S.loadVersion;
@@ -29,8 +36,12 @@ export async function loadTerrain(options = {}) {
   S.loadAbortController?.abort();
   const abortController = new AbortController();
   S.loadAbortController = abortController;
+  clearBackfillTerrain();
+  S.backfillGrid = null;
+  S.backfillTile = null;
+  S.backfillScale = 1;
   window.clearTimeout(S.refineTimer); // 새 로드 시작 → 대기 중인 정밀화 취소
-  const lat = clamp(Number(els.lat.value), -85, 85);
+  const lat = clamp(Number(els.lat.value), NAV_LAT_MIN, NAV_LAT_MAX);
   const lon = wrapLon(Number(els.lon.value));
   const z = clamp(Math.round(Number(els.zoom.value)), MIN_ZOOM, MAX_ZOOM);
   els.lat.value = lat.toFixed(6);
@@ -63,7 +74,9 @@ export async function loadTerrain(options = {}) {
       fillBboxFromCurrent();
       els.rangeHud.textContent = `${Math.round(grid.min)}m..${Math.round(grid.max)}m`;
       els.resolutionHud.textContent = `${grid.tileSamples}x${grid.tileSamples} / tile`;
-      els.coverageHud.textContent = `${grid.loadedTiles}/${grid.totalTiles}`;
+      els.coverageHud.textContent = grid.fallbackTiles
+        ? `${grid.loadedTiles}/${grid.totalTiles} (${grid.fallbackTiles} fallback)`
+        : `${grid.loadedTiles}/${grid.totalTiles}`;
       renderedOnce = true;
       lastPartialRenderTime = performance.now();
     };
@@ -148,12 +161,17 @@ export async function loadTerrain(options = {}) {
     const missingText = grid.missingTiles
       ? `일부 타일 없음: ${grid.missingTiles}/${grid.totalTiles}개. 빈 칸은 평지로 표시됩니다.`
       : `표시 중: ${S.patchWidth}x${S.patchWidth} tiles, samples ${grid.tileSamples} at z${z}/${tile.x}/${tile.y} (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
-    setStatus(missingText);
+    setStatus(
+      !grid.missingTiles && grid.fallbackTiles
+        ? `축소 타일 확대 표시: ${grid.fallbackTiles}/${grid.totalTiles}개 fallback at z${z}/${tile.x}/${tile.y}`
+        : missingText,
+    );
 
     // 화면이 멈춰 있으면 같은 패치를 더 촘촘히 다시 디코딩해 고해상으로 정밀화한다.
     if (S.loadAbortController === abortController) {
       S.loadAbortController = null;
     }
+    scheduleBackfill(tile, z, version);
     scheduleRefine(tile, z, plan, version);
   } catch (error) {
     if (abortController.signal.aborted) return;
@@ -163,6 +181,41 @@ export async function loadTerrain(options = {}) {
       S.loadAbortController = null;
     }
   }
+}
+
+function scheduleBackfill(tile, z, version) {
+  const parentZ = Math.max(MIN_ZOOM, z - BACKFILL_ZOOM_DELTA);
+  if (parentZ >= z) return;
+
+  window.setTimeout(async () => {
+    if (version !== S.loadVersion) return;
+    try {
+      const scale = 2 ** (z - parentZ);
+      const parentLimit = 2 ** parentZ;
+      const parentTile = {
+        x: Math.floor(tile.x / scale) % parentLimit,
+        y: clamp(Math.floor(tile.y / scale), 0, parentLimit - 1),
+        z: parentZ,
+      };
+      const plan = {
+        width: BACKFILL_WIDTH,
+        negative: BACKFILL_WIDTH / 2 - 1,
+        positive: BACKFILL_WIDTH / 2,
+        samples: BACKFILL_TILE_SAMPLES,
+        worldSize: BACKFILL_WIDTH * TILE_WORLD * scale,
+      };
+      const grid = await loadTerrainPatch(parentTile, parentZ, plan);
+      if (version !== S.loadVersion || grid.loadedTiles === 0) return;
+      S.backfillGrid = grid;
+      S.backfillTile = parentTile;
+      S.backfillScale = scale;
+      renderBackfillTerrain(grid);
+      updateBackfillPosition();
+      setStatus(`원거리 저해상도 지형 채움: z${parentZ} ${grid.loadedTiles}/${grid.totalTiles}개`);
+    } catch {
+      /* 원거리 보조 지형은 실패해도 가까운 지형 표시를 유지한다. */
+    }
+  }, 0);
 }
 
 // 정밀화: 대기 후에도 같은 로드가 유효하고 이동 중이 아니면, 캐시된 타일을 더 높은 샘플로
@@ -205,6 +258,10 @@ function preserveGeographicViewAnchor(anchor, z) {
 export function applyExaggeration() {
   if (!S.currentGrid) return;
   renderTerrain(S.currentGrid, { keepCamera: true });
+  if (S.backfillGrid) {
+    renderBackfillTerrain(S.backfillGrid);
+    updateBackfillPosition();
+  }
   updatePatchPosition();
   updatePlaceLabels();
 }
@@ -221,9 +278,21 @@ export function updatePatchPosition() {
   const x = offset.x * tileWorld;
   const z = offset.y * tileWorld;
   if (S.terrain) S.terrain.position.set(x, 0, z);
+  updateBackfillPosition();
   if (S.tileBoundaryGroup) S.tileBoundaryGroup.position.set(x, 0, z);
   if (S.directionGroup) S.directionGroup.position.set(x, 0, z);
   updatePlaceLabels();
+}
+
+function updateBackfillPosition() {
+  if (!S.terrainBackfill || !S.backfillTile || !S.worldOriginTileFloat) return;
+  const center = {
+    x: (S.backfillTile.x + PATCH_CENTER_OFFSET) * S.backfillScale,
+    y: (S.backfillTile.y + PATCH_CENTER_OFFSET) * S.backfillScale,
+  };
+  const offset = tileOffsetFromOrigin(center);
+  const tileWorld = tileWorldSize();
+  S.terrainBackfill.position.set(offset.x * tileWorld, 0, offset.y * tileWorld);
 }
 
 export function updatePlayerMarker(options = {}) {

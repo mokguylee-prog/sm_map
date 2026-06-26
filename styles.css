@@ -37,7 +37,7 @@ select {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr);
   width: 100vw;
   height: 100vh;
 }
@@ -55,6 +55,47 @@ select {
   height: 100%;
   touch-action: none;
   user-select: none;
+}
+
+.label-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.globe-label {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.label-country {
+  color: #f4f7ff;
+  font-weight: 750;
+}
+
+.label-capital {
+  color: #69f0a8;
+}
+
+.label-major-city,
+.label-korea-city {
+  color: #7db8ff;
+}
+
+.label-regional {
+  color: #b8dcff;
+}
+
+.label-mountain,
+.label-mountain-range {
+  color: #f1f1d0;
 }
 
 .status-strip {
@@ -144,6 +185,26 @@ select {
 
 .tilt-button:hover {
   border-color: var(--accent-2);
+}
+
+.compass-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tilt-readout {
+  min-width: 48px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(21, 27, 25, 0.78);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  backdrop-filter: blur(8px);
 }
 
 /* 스택 안에서는 나침반이 흐름 배치되도록 절대위치 해제(자식 N/E/S/W 기준점은 유지). */
@@ -239,7 +300,7 @@ select {
 .touch-controls {
   position: absolute;
   right: 18px;
-  bottom: 78px;
+  bottom: 96px;
   z-index: 5; /* 상태 표시줄(.status-strip) 위에 항상 보이도록 */
   display: flex;
   flex-direction: column;
@@ -247,6 +308,8 @@ select {
 }
 
 .touch-controls button {
+  display: block;
+  flex: 0 0 44px;
   width: 44px;
   height: 44px;
   min-height: 44px;
@@ -303,10 +366,11 @@ select {
 }
 
 .menu-toggle {
-  display: none;
+  display: block;
   position: absolute;
   right: 18px;
   bottom: 18px;
+  z-index: 13;
   min-width: 74px;
   min-height: 44px;
   border-color: rgba(255, 255, 255, 0.18);
@@ -334,14 +398,30 @@ select {
 }
 
 .panel-backdrop {
-  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: block;
+  background: rgba(0, 0, 0, 0.36);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease-out;
 }
 
 .panel-close {
-  display: none;
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 31;
+  display: block;
+  min-height: 34px;
+  padding: 6px 10px;
   border-color: #65dba2;
   background: #20845b;
   color: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
 }
 
 .panel-close:hover {
@@ -350,7 +430,13 @@ select {
 }
 
 .panel {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  right: 0;
+  bottom: 0;
   min-width: 0;
+  width: min(380px, calc(100vw - 56px));
   height: 100%;
   overflow: auto;
   padding: 18px;
@@ -358,7 +444,24 @@ select {
   background:
     linear-gradient(180deg, rgba(66, 197, 138, 0.06), transparent 190px),
     var(--panel);
+  box-shadow: -18px 0 36px rgba(0, 0, 0, 0.34);
   font-size: 12px;
+  transform: translateX(calc(100% + 12px));
+  transition: transform 180ms ease-out;
+}
+
+body.panel-open .panel {
+  transform: translateX(0);
+}
+
+body.panel-open .panel-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.panel-open .panel-close {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .panel-header h1 {
@@ -563,7 +666,7 @@ button:disabled {
     top: 10px;
     left: 10px;
     right: auto;
-    width: min(100% - 110px, 420px);
+    width: min(calc(100% - 176px), 420px);
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -676,7 +779,7 @@ button:disabled {
   }
 
   .hud {
-    width: calc(100% - 104px);
+    width: calc(100% - 176px);
     gap: 6px;
   }
 
@@ -703,4 +806,62 @@ button:disabled {
   .preset-row button {
     flex: 1 1 132px;
   }
+}
+
+/* Right-side drawer behavior for all viewport sizes. */
+.touch-controls {
+  z-index: 12;
+}
+
+.panel {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  width: min(380px, calc(100vw - 56px));
+  height: 100dvh;
+  max-height: none;
+  padding: 18px;
+  border-top: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: -18px 0 36px rgba(0, 0, 0, 0.34);
+  transform: translateX(calc(100% + 12px));
+  transition: transform 180ms ease-out;
+}
+
+body.panel-open .panel {
+  transform: translateX(0);
+}
+
+.panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.panel-open .panel-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.panel-close {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  bottom: auto;
+  z-index: 31;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.panel-open .panel-close {
+  opacity: 1;
+  pointer-events: auto;
 }

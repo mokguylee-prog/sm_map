@@ -1,6 +1,6 @@
 // 타일 URL 생성, 다운로드 + 디코딩, 패치(현재 줌 계획) 조립.
 
-import { TILE_SIZE, TILE_CACHE_LIMIT, TILE_FETCH_CONCURRENCY } from "./config.js";
+import { TILE_SIZE, TILE_CACHE_LIMIT, TILE_FETCH_CONCURRENCY, MIN_ZOOM } from "./config.js";
 import { els } from "./dom.js";
 import { clamp } from "./utils.js";
 import { recordRequest } from "./netStats.js";
@@ -51,6 +51,64 @@ export async function fetchTileImageData(x, y, z, signal) {
   return imageData;
 }
 
+export async function fetchTileImageDataWithFallback(x, y, z, signal) {
+  try {
+    return {
+      imageData: await fetchTileImageData(x, y, z, signal),
+      fallbackZ: null,
+    };
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    for (let parentZ = z - 1; parentZ >= MIN_ZOOM; parentZ -= 1) {
+      try {
+        return {
+          imageData: await fetchParentTileImageData(x, y, z, parentZ, signal),
+          fallbackZ: parentZ,
+        };
+      } catch {
+        if (signal?.aborted) throw error;
+      }
+    }
+    throw error;
+  }
+}
+
+async function fetchParentTileImageData(x, y, z, parentZ, signal) {
+  const fallbackKey = `${tileUrl(x, y, z)}#fallback-parent-z${parentZ}`;
+  const cached = cacheGet(fallbackKey);
+  if (cached) return cached;
+
+  const scale = 2 ** (z - parentZ);
+  const parentLimit = 2 ** parentZ;
+  const parentX = Math.floor(x / scale) % parentLimit;
+  const parentY = clamp(Math.floor(y / scale), 0, parentLimit - 1);
+  const parentImageData = await fetchTileImageData(parentX, parentY, parentZ, signal);
+  const imageData = cropParentTile(parentImageData, x, y, scale);
+  cacheSet(fallbackKey, imageData);
+  return imageData;
+}
+
+function cropParentTile(parentImageData, x, y, scale) {
+  const parentCanvas = document.createElement("canvas");
+  parentCanvas.width = TILE_SIZE;
+  parentCanvas.height = TILE_SIZE;
+  const parentCtx = parentCanvas.getContext("2d");
+  parentCtx.putImageData(parentImageData, 0, 0);
+
+  const childPixelSize = TILE_SIZE / scale;
+  const sourceSize = Math.max(1, childPixelSize);
+  const sx = Math.min(TILE_SIZE - sourceSize, Math.floor((x % scale) * childPixelSize));
+  const sy = Math.min(TILE_SIZE - sourceSize, Math.floor((y % scale) * childPixelSize));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = TILE_SIZE;
+  canvas.height = TILE_SIZE;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(parentCanvas, sx, sy, sourceSize, sourceSize, 0, 0, TILE_SIZE, TILE_SIZE);
+  return ctx.getImageData(0, 0, TILE_SIZE, TILE_SIZE);
+}
+
 // Terrarium 디코딩: height_m = R*256 + G + B/256 - 32768
 export function decodeGrid(imageData, samples) {
   const heights = new Float32Array(samples * samples);
@@ -87,9 +145,11 @@ function buildPatchTiles(centerTile, z, patchNegative, patchPositive) {
   const limit = 2 ** z;
   for (let oy = -patchNegative; oy <= patchPositive; oy += 1) {
     for (let ox = -patchNegative; ox <= patchPositive; ox += 1) {
+      const y = centerTile.y + oy;
+      if (y < 0 || y >= limit) continue;
       patchTiles.push({
         x: (centerTile.x + ox + limit) % limit,
-        y: clamp(centerTile.y + oy, 0, limit - 1),
+        y,
         ox,
         oy,
       });
@@ -127,6 +187,7 @@ function patchSnapshot(state) {
     totalTiles: state.totalTiles,
     missingTiles: state.settledTiles - state.loadedTiles,
     loadedTiles: state.loadedTiles,
+    fallbackTiles: state.fallbackTiles,
   };
 }
 
@@ -143,6 +204,7 @@ export async function loadTerrainPatch(centerTile, z, plan, onPartial, options =
     tileSamples,
     totalTiles: patchTiles.length,
     loadedTiles: 0,
+    fallbackTiles: 0,
     settledTiles: 0,
   };
 
@@ -152,13 +214,14 @@ export async function loadTerrainPatch(centerTile, z, plan, onPartial, options =
       const tile = patchTiles[nextIndex];
       nextIndex += 1;
       try {
-        const imageData = await fetchTileImageData(tile.x, tile.y, z, options.signal);
+        const { imageData, fallbackZ } = await fetchTileImageDataWithFallback(tile.x, tile.y, z, options.signal);
         if (options.signal?.aborted) return;
         const grid = decodeGrid(imageData, tileSamples);
         stitchTile(tile, grid, tileSamples, samples, patchNegative, state.heights);
         state.min = Math.min(state.min, grid.min);
         state.max = Math.max(state.max, grid.max);
         state.loadedTiles += 1;
+        if (fallbackZ != null) state.fallbackTiles += 1;
       } catch {
         if (options.signal?.aborted) return;
         // 없는 타일은 0m 평면으로 남겨두고, 들어온 타일부터 먼저 보여준다.

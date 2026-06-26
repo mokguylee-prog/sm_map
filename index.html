@@ -39,12 +39,15 @@
         </div>
         <div class="compass-stack">
           <button id="tiltUpButton" class="tilt-button" type="button" aria-label="경사 올리기(지평선 쪽)" title="경사 올리기">▲</button>
-          <div class="compass" aria-label="방위표 (클릭: 북쪽 수직 뷰)" title="북쪽 정렬 + 수직 내려다보기" role="button" tabindex="0">
-            <span class="north">N</span>
-            <span class="east">E</span>
-            <span class="south">S</span>
-            <span class="west">W</span>
-            <span class="needle"></span>
+          <div class="compass-row">
+            <div class="tilt-readout" id="tiltAngleReadout" aria-label="틸트 각도">0°</div>
+            <div class="compass" aria-label="방위표 (클릭: 북쪽 수직 뷰)" title="북쪽 정렬 + 수직 내려다보기" role="button" tabindex="0">
+              <span class="north">N</span>
+              <span class="east">E</span>
+              <span class="south">S</span>
+              <span class="west">W</span>
+              <span class="needle"></span>
+            </div>
           </div>
           <button id="tiltDownButton" class="tilt-button" type="button" aria-label="경사 내리기(수직 내려다보기)" title="경사 내리기">▼</button>
         </div>

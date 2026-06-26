@@ -11,6 +11,7 @@ export const els = {
   coverageHud: document.querySelector("#coverageHud"),
   compass: document.querySelector(".compass"),
   compassNeedle: document.querySelector(".compass .needle"),
+  tiltAngleReadout: document.querySelector("#tiltAngleReadout"),
   menuToggle: document.querySelector("#menuToggleButton"),
   panel: document.querySelector("#controlPanel"),
   panelBackdrop: document.querySelector("#panelBackdrop"),

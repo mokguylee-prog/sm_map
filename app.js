@@ -1,140 +1,291 @@
-// 앱 진입점/오케스트레이터.
-// 실제 기능은 src/ 하위 모듈로 분리되어 있다:
-//   config        상수/설정
-//   utils         순수 유틸
-//   tileMath      위경도 ↔ 타일 좌표
-//   dom           DOM 참조/상태표시
-//   state         공유 가변 상태(S)
-//   storage       localStorage 저장/복원
-//   tiles         타일 fetch(LRU 캐시)/디코딩/패치 조립
-//   positioning   타일→월드 오프셋
-//   sceneSetup    Three.js 씬/카메라/마커/나침반
-//   terrainMesh   높이그리드→3D 메시
-//   labels        지명/국가 라벨(지연 생성)
-//   terrainLoader 로딩 오케스트레이션
-//   movement      입력(마우스/방향키/휠)
-//   download      bbox 채우기/ZIP 다운로드
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 
 import { SOURCES } from "./src/config.js";
 import { els, setStatus } from "./src/dom.js";
-import { S, pressedKeys } from "./src/state.js";
 import { clamp } from "./src/utils.js";
 import { saveState, loadState } from "./src/storage.js";
-import { setupThree, updateCompass, resetCameraNorthTopDown, constrainMapPanToPoles } from "./src/sceneSetup.js";
-import { applyPlaceLabelScale, buildPlaceLabels } from "./src/labels.js";
-import { loadTerrain, applyExaggeration } from "./src/terrainLoader.js";
-import {
-  onKeyDown,
-  onKeyUp,
-  onTerrainWheel,
-  onPointerMove,
-  onPointerDown,
-  onPointerUp,
-  onClickMove,
-  onPinchPointerDown,
-  onPinchPointerMove,
-  onPinchPointerUp,
-  resetPinchPointers,
-  updateMovement,
-  updateMapPanNavigation,
-  zoomTerrainBy,
-  tiltCameraBy,
-} from "./src/movement.js";
-import { fillBboxFromCurrent, downloadBbox } from "./src/download.js";
-import { registerTileCacheWorker, tileCacheCount, clearTileCache } from "./src/tileCachePersist.js";
 import { onNetStatsChange, getNetStats, formatBytes, persistNetStats, resetNetStats } from "./src/netStats.js";
+import { registerTileCacheWorker, tileCacheCount, clearTileCache } from "./src/tileCachePersist.js";
+import { downloadBbox } from "./src/download.js";
 import { PRESETS } from "./places.js";
+import { QuadTile, EARTH_RADIUS, setTileSegments, getTileSegments, onGlobeMeshChange } from "./src/globe/quadTile.js";
+import { latLonToWorld, worldToLatLon } from "./src/globe/globeMath.js";
+import { initLabels, updateLabels, setLabelScale } from "./src/globe/labels.js";
 
-// 통신량 집계는 타일마다 빈번히 갱신되므로, DOM 반영은 프레임당 1회로 코얼레싱한다.
+const BASE_Z = 2;
+const HARD_MAX_Z = 14;
+const SPLIT_K = 2.2;
+const START_DISTANCE = EARTH_RADIUS * 3.0;
+const ZOOM_OFFSET = 1.5;
+const MAX_TERRAIN_M = 9000;
+const GLOBE_STATE_MARKER = "terrain-globe-state-active-v1";
+const TILT_MIN = -Math.PI / 2;
+const TILT_MAX = Math.PI / 2;
+const TILT_STEP = THREE.MathUtils.degToRad(3);
+
+let renderer;
+let labelRenderer;
+let scene;
+let camera;
+let controls;
+let globeGroup;
+let baseMesh;
+let viewTilt = 0;
+let flyDest = null;
+let pointerDownPos = null;
+let tiltTimer = 0;
 let netDirty = false;
+let appliedExag = 1;
+let frameCount = 0;
+
+const roots = [];
+const pressedKeys = new Set();
+const frustum = new THREE.Frustum();
+const projScreenMatrix = new THREE.Matrix4();
+const raycaster = new THREE.Raycaster();
+const tmpDir = new THREE.Vector3();
+const NORTH = new THREE.Vector3(0, 1, 0);
+
 onNetStatsChange(() => {
   netDirty = true;
 });
 
-function updateNetReadout() {
-  const { receivedBytes, sentBytes, cacheBytes } = getNetStats();
-  els.net.textContent =
-    `네트워크 ↓ ${formatBytes(receivedBytes)} · ↑ ${formatBytes(sentBytes)} · 캐시 ${formatBytes(cacheBytes)}`;
-}
+onGlobeMeshChange(() => {
+  updateCoverageHud();
+});
 
 async function init() {
   document.body.dataset.appReady = "true";
   const saved = loadState();
-  const initial = saved ?? { source: "mapterhorn", lat: 37.5665, lon: 126.9780, zoom: 12, exaggeration: 0.5 };
+  const hasGlobeState = localStorage.getItem(GLOBE_STATE_MARKER) === "true";
+  const initial = hasGlobeState && saved
+    ? saved
+    : { source: "mapterhorn", lat: 37.5665, lon: 126.978, zoom: 4, exaggeration: 0.5, resolution: 100, labelScale: 1 };
 
   els.source.value = initial.source ?? "mapterhorn";
   els.url.value = initial.url ?? SOURCES[els.source.value] ?? SOURCES.mapterhorn;
-  els.lat.value = initial.lat;
-  els.lon.value = initial.lon;
-  els.zoom.value = initial.zoom;
-  els.exaggeration.value = clamp(initial.exaggeration ?? 0.5, 0.01, 0.5);
-  els.resolution.value = clamp(Math.round(initial.resolution ?? 100), 50, 200);
-  S.resolutionScale = Number(els.resolution.value) / 100;
-  updateResolutionReadout();
-  els.labelScale.value = clamp(initial.labelScale ?? initial.fontScale ?? 1, 1, 1.8);
-  applyLabelScale();
+  els.lat.value = Number(initial.lat ?? 37.5665).toFixed(6);
+  els.lon.value = Number(initial.lon ?? 126.978).toFixed(6);
+  els.zoom.value = clamp(Math.round(Number(initial.zoom ?? 7)), BASE_Z, HARD_MAX_Z);
+  els.exaggeration.value = clamp(Number(initial.exaggeration ?? 0.5), 0.01, 0.5);
+  els.resolution.value = clamp(Math.round(Number(initial.resolution ?? 100)), 50, 200);
+  els.labelScale.value = clamp(Number(initial.labelScale ?? 1), 1, 1.8);
 
-  setupThree();
-  buildPlaceLabels();
+  setTileSegments(resolutionToSegments(Number(els.resolution.value)));
+  updateResolutionReadout();
+
+  setupScene();
+  setCameraFromInputs();
+  appliedExag = targetExaggeration(Math.max(1, camera.position.length() - EARTH_RADIUS));
+
+  initLabels(scene);
+  setLabelScale(Number(els.labelScale.value));
+  buildRoots();
   buildPresets();
   bindEvents();
-  animate();
 
-  // 저장된 누적 통신량을 접속 즉시 표시.
   updateNetReadout();
-
-  // 캐시 타일 수 표시를 주기적으로 갱신(저빈도 폴링) + 누적 통신량 영속화.
   updateCacheStatus();
   window.setInterval(() => {
     updateCacheStatus();
     persistNetStats();
   }, 5000);
-
-  setStatus("타일 캐시 준비 중...");
   await registerTileCacheWorker();
-  locateAtStartup(saved);
+
+  animate();
+  localStorage.setItem(GLOBE_STATE_MARKER, "true");
+  setStatus("지구본 준비 완료. 드래그: 회전, 휠/버튼: 확대 축소, 클릭: 지점 이동");
 }
 
-async function updateCacheStatus() {
-  const count = await tileCacheCount();
-  els.cacheStatus.textContent = `캐시: ${count.toLocaleString()} 타일`;
+function setupScene() {
+  renderer = new THREE.WebGLRenderer({ canvas: els.canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  labelRenderer = new CSS2DRenderer();
+  labelRenderer.domElement.className = "label-layer";
+  document.querySelector(".viewport").appendChild(labelRenderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9dbdcc);
+
+  camera = new THREE.PerspectiveCamera(45, 1, 1, EARTH_RADIUS * 10);
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0, 0);
+  controls.enablePan = false;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enableZoom = false;
+  controls.rotateSpeed = 0.22;
+  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+  controls.minDistance = EARTH_RADIUS * 1.0008;
+  controls.maxDistance = EARTH_RADIUS * 6;
+
+  scene.add(new THREE.HemisphereLight(0xe9f7ff, 0x8fa56e, 1.65));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.28));
+  const sun = new THREE.DirectionalLight(0xfff1ce, 3.2);
+  sun.position.set(1, 0.6, 0.4).normalize().multiplyScalar(EARTH_RADIUS * 5);
+  scene.add(sun);
+
+  baseMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_RADIUS * 0.999, 96, 96),
+    new THREE.MeshStandardMaterial({ color: 0x347485, roughness: 1, metalness: 0 }),
+  );
+  scene.add(baseMesh);
+
+  const atm = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_RADIUS * 1.018, 48, 48),
+    new THREE.MeshBasicMaterial({ color: 0x5ca7d6, transparent: true, opacity: 0.12, side: THREE.BackSide }),
+  );
+  scene.add(atm);
+
+  globeGroup = new THREE.Group();
+  scene.add(globeGroup);
+
+  window.addEventListener("resize", resize);
+  resize();
+}
+
+function resize() {
+  const rect = els.canvas.getBoundingClientRect();
+  const width = Math.max(1, rect.width);
+  const height = Math.max(1, rect.height);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height, false);
+  labelRenderer.setSize(width, height);
+}
+
+function buildRoots() {
+  for (const root of roots) root.dispose();
+  roots.length = 0;
+  const n = 2 ** BASE_Z;
+  for (let y = 0; y < n; y += 1) {
+    for (let x = 0; x < n; x += 1) {
+      roots.push(new QuadTile(BASE_Z, x, y, globeGroup));
+    }
+  }
+  updateCoverageHud();
+}
+
+function resolutionToSegments(pct) {
+  return Math.round(48 * (pct / 100));
+}
+
+function currentMaxZoom() {
+  return els.source.value === "mapterhorn" ? 12 : HARD_MAX_Z;
+}
+
+function effectiveZoom() {
+  const alt = Math.max(1, camera.position.length() - EARTH_RADIUS);
+  return THREE.MathUtils.clamp(Math.log2((2 * Math.PI * EARTH_RADIUS) / alt) + ZOOM_OFFSET, BASE_Z, currentMaxZoom() + 1);
+}
+
+function altitudeForZoom(z) {
+  const alt = (2 * Math.PI * EARTH_RADIUS) / 2 ** (z - ZOOM_OFFSET);
+  return THREE.MathUtils.clamp(alt, controls.minDistance - EARTH_RADIUS, controls.maxDistance - EARTH_RADIUS);
+}
+
+function targetExaggeration(alt) {
+  const userMax = Math.max(1, Number(els.exaggeration.value) * 120);
+  const altitudeFactor = THREE.MathUtils.clamp(1 - alt / (EARTH_RADIUS * 1.5), 0.35, 1);
+  return THREE.MathUtils.clamp(userMax * altitudeFactor, 0.5, userMax);
+}
+
+function refreshExaggeration(force = false) {
+  const alt = Math.max(1, camera.position.length() - EARTH_RADIUS);
+  const target = targetExaggeration(alt);
+  if (!force && Math.abs(target - appliedExag) <= appliedExag * 0.2) return;
+  appliedExag = target;
+  for (const root of roots) rebuildSubtree(root);
+}
+
+function rebuildSubtree(node) {
+  if (node.isLoaded()) node.rebuild(appliedExag);
+  if (node.children) for (const child of node.children) rebuildSubtree(child);
+}
+
+function getExaggeration() {
+  return appliedExag;
+}
+
+function setCameraFromInputs() {
+  const lat = clamp(Number(els.lat.value), -85, 85);
+  const lon = Number(els.lon.value);
+  const zoom = clamp(Math.round(Number(els.zoom.value)), BASE_Z, currentMaxZoom());
+  const dir = latLonToWorld(lat, lon, 0).normalize();
+  camera.position.copy(dir.multiplyScalar(EARTH_RADIUS + altitudeForZoom(zoom)));
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+function flyTo(lat, lon, altitude = Math.max(1, camera.position.length() - EARTH_RADIUS)) {
+  const dir = latLonToWorld(clamp(lat, -85, 85), lon, 0).normalize();
+  flyDest = dir.multiplyScalar(EARTH_RADIUS + altitude);
 }
 
 function buildPresets() {
-  PRESETS.forEach((preset) => {
+  els.presetRow.textContent = "";
+  for (const preset of PRESETS) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = preset.name;
-    button.addEventListener("click", () => {
-      // 위치만 이동하고 현재 줌·카메라 뷰는 유지한다(preset.zoom은 적용하지 않음).
-      els.lat.value = preset.lat;
-      els.lon.value = preset.lon;
-      loadTerrain({ keepCamera: true, resetOrigin: true });
-    });
+    button.addEventListener("click", () => flyTo(preset.lat, preset.lon, altitudeForZoom(Math.max(BASE_Z, Number(els.zoom.value) || 7))));
     els.presetRow.append(button);
-  });
+  }
 }
 
 function bindEvents() {
   els.menuToggle.addEventListener("click", () => setPanelOpen(true));
   els.panelClose.addEventListener("click", () => setPanelOpen(false));
   els.panelBackdrop.addEventListener("click", () => setPanelOpen(false));
+
   els.source.addEventListener("change", () => {
-    if (els.source.value !== "custom") {
-      els.url.value = SOURCES[els.source.value];
-    }
+    if (els.source.value !== "custom") els.url.value = SOURCES[els.source.value];
     saveState();
-    loadTerrain({ keepCamera: true, resetOrigin: true });
+    buildRoots();
   });
-  els.load.addEventListener("click", () => loadTerrain({ keepCamera: true, resetOrigin: true }));
-  els.locate.addEventListener("click", () => locate(true));
+  els.url.addEventListener("change", () => {
+    saveState();
+    buildRoots();
+  });
+
+  els.load.addEventListener("click", () => {
+    flyDest = null;
+    setCameraFromInputs();
+    saveState();
+  });
+  els.locate.addEventListener("click", locate);
+
   els.exaggeration.addEventListener("input", () => {
-    applyExaggeration();
+    refreshExaggeration(true);
     saveState();
   });
-  els.labelScale.addEventListener("input", applyLabelScale);
+  els.labelScale.addEventListener("input", () => {
+    setLabelScale(Number(els.labelScale.value));
+  });
   els.labelScale.addEventListener("change", saveState);
-  els.fillBbox.addEventListener("click", fillBboxFromCurrent);
+
+  els.resolution.addEventListener("input", updateResolutionReadout);
+  els.resolution.addEventListener("change", () => {
+    setTileSegments(resolutionToSegments(Number(els.resolution.value)));
+    saveState();
+    buildRoots();
+  });
+
+  els.zoomIn.addEventListener("click", () => zoomByAltitude(0.82));
+  els.zoomOut.addEventListener("click", () => zoomByAltitude(1 / 0.82));
+
+  bindTiltButton(els.tiltUp, -TILT_STEP);
+  bindTiltButton(els.tiltDown, TILT_STEP);
+  els.compass.addEventListener("click", () => {
+    viewTilt = 0;
+    flyDest = null;
+    setCameraFromInputs();
+  });
+
+  els.fillBbox.addEventListener("click", fillBboxFromGlobe);
   els.download.addEventListener("click", downloadBbox);
   els.clearCache.addEventListener("click", async () => {
     await clearTileCache();
@@ -144,69 +295,48 @@ function bindEvents() {
     resetNetStats();
     updateNetReadout();
   });
-  els.zoomIn.addEventListener("click", () => zoomTerrainBy(1));
-  els.zoomOut.addEventListener("click", () => zoomTerrainBy(-1));
-  // 경사(틸트): 나침반 위(▲)/아래(▼) 버튼. 누르고 있으면 연속 적용.
-  bindHoldTilt(els.tiltUp, 0.04);    // ▲ 지평선 쪽으로 기울이기(phi 증가)
-  bindHoldTilt(els.tiltDown, -0.04); // ▼ 수직 내려다보기로(phi 감소)
-  // 드래그 중에는 라벨만 즉시 갱신하고, 손을 떼면(change) 해상도를 적용해 다시 그린다.
-  els.resolution.addEventListener("input", () => {
-    S.resolutionScale = Number(els.resolution.value) / 100;
-    updateResolutionReadout();
-  });
-  els.resolution.addEventListener("change", () => {
-    S.resolutionScale = Number(els.resolution.value) / 100;
-    saveState();
-    loadTerrain({ keepCamera: true });
-  });
-  els.compass.addEventListener("click", resetCameraNorthTopDown);
-  S.renderer.domElement.addEventListener("pointermove", onPointerMove);
-  S.renderer.domElement.addEventListener("pointerdown", onPointerDown);
-  S.renderer.domElement.addEventListener("pointerup", onPointerUp);
-  S.renderer.domElement.addEventListener("pointercancel", onPointerUp);
-  // 모바일 핀치 줌(두 손가락) — OrbitControls 회전 제스처와 함께 동작.
-  S.renderer.domElement.addEventListener("pointerdown", onPinchPointerDown);
-  S.renderer.domElement.addEventListener("pointermove", onPinchPointerMove);
-  S.renderer.domElement.addEventListener("pointerup", onPinchPointerUp);
-  S.renderer.domElement.addEventListener("pointercancel", onPinchPointerUp);
-  S.renderer.domElement.addEventListener("click", onClickMove);
-  S.renderer.domElement.addEventListener("wheel", onTerrainWheel, { passive: false });
-  window.addEventListener("keydown", onKeyDown);
+
+  renderer.domElement.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    zoomByAltitude(event.deltaY > 0 ? 1.08 : 1 / 1.08, { x: event.clientX, y: event.clientY });
+  }, { passive: false });
+  renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  renderer.domElement.addEventListener("pointerup", onPointerUp);
+  renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
+
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") setPanelOpen(false);
+    if (event.key.startsWith("Arrow") && !(event.target && ["INPUT", "SELECT", "BUTTON"].includes(event.target.tagName))) {
+      pressedKeys.add(event.key);
+      event.preventDefault();
+    }
   });
-  window.addEventListener("keyup", onKeyUp);
-  window.addEventListener("pointerup", onPointerUp);
-  window.addEventListener("pointercancel", onPointerUp);
-  window.addEventListener("pointerup", onPinchPointerUp);
-  window.addEventListener("pointercancel", onPinchPointerUp);
+  window.addEventListener("keyup", (event) => pressedKeys.delete(event.key));
   window.addEventListener("blur", () => {
     pressedKeys.clear();
-    resetPinchPointers();
-  });
-  [els.lat, els.lon, els.zoom, els.url].forEach((el) => {
-    el.addEventListener("change", () => {
-      saveState();
-      loadTerrain({ keepCamera: true, resetOrigin: true });
-    });
+    stopTilt();
   });
 }
 
-// 틸트 버튼: 누르는 동안 deltaPhi를 반복 적용(클릭 한 번이면 1회).
-function bindHoldTilt(button, deltaPhi) {
+function bindTiltButton(button, delta) {
   if (!button) return;
-  let timer = null;
-  const stop = () => { if (timer) { window.clearInterval(timer); timer = null; } };
   button.addEventListener("pointerdown", (event) => {
     event.preventDefault();
-    tiltCameraBy(deltaPhi);
-    stop();
-    timer = window.setInterval(() => tiltCameraBy(deltaPhi), 33);
+    viewTilt = clamp(viewTilt + delta, TILT_MIN, TILT_MAX);
+    stopTilt();
+    tiltTimer = window.setInterval(() => {
+      viewTilt = clamp(viewTilt + delta, TILT_MIN, TILT_MAX);
+    }, 33);
   });
-  button.addEventListener("pointerup", stop);
-  button.addEventListener("pointerleave", stop);
-  button.addEventListener("pointercancel", stop);
-  window.addEventListener("blur", stop);
+  button.addEventListener("pointerup", stopTilt);
+  button.addEventListener("pointerleave", stopTilt);
+  button.addEventListener("pointercancel", stopTilt);
+}
+
+function stopTilt() {
+  if (!tiltTimer) return;
+  window.clearInterval(tiltTimer);
+  tiltTimer = 0;
 }
 
 function setPanelOpen(open) {
@@ -214,71 +344,260 @@ function setPanelOpen(open) {
   els.menuToggle.setAttribute("aria-expanded", String(open));
 }
 
-function updateResolutionReadout() {
-  els.resolutionSliderValue.textContent = `${els.resolution.value}%`;
+function onPointerDown(event) {
+  if (event.button !== 0) return;
+  pointerDownPos = { x: event.clientX, y: event.clientY };
 }
 
-function applyLabelScale() {
-  applyPlaceLabelScale(Number(els.labelScale.value));
+function onPointerUp(event) {
+  if (!pointerDownPos) return;
+  const moved = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
+  pointerDownPos = null;
+  if (moved > 6) return;
+
+  const hit = pickGlobePointAt(event.clientX, event.clientY);
+  if (!hit) return;
+  const { lat, lon, r } = worldToLatLon(hit.point);
+  const elevation = Math.round((r - EARTH_RADIUS) / Math.max(0.001, appliedExag));
+  els.height.textContent = `height_m: ${elevation.toLocaleString()}`;
+  els.lat.value = lat.toFixed(6);
+  els.lon.value = lon.toFixed(6);
+  flyTo(lat, lon);
+  saveState();
 }
 
-async function locateAtStartup(saved) {
-  if (saved) {
-    await loadTerrain({ resetOrigin: true });
-    return;
+function pickGlobePointAt(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const ndc = new THREE.Vector2(
+    ((clientX - rect.left) / rect.width) * 2 - 1,
+    -((clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  raycaster.setFromCamera(ndc, camera);
+  return raycaster.intersectObjects([baseMesh, ...globeGroup.children], false)[0] ?? null;
+}
+
+function zoomByAltitude(factor, anchor) {
+  flyDest = null;
+  const alt = camera.position.length() - EARTH_RADIUS;
+  const nextAlt = THREE.MathUtils.clamp(alt * factor, controls.minDistance - EARTH_RADIUS, controls.maxDistance - EARTH_RADIUS);
+  const currentDir = camera.position.clone().normalize();
+  const hit = anchor ? pickGlobePointAt(anchor.x, anchor.y) : null;
+  if (hit) {
+    const anchorDir = hit.point.clone().normalize();
+    const tangent = anchorDir.sub(currentDir.clone().multiplyScalar(anchorDir.dot(currentDir)));
+    if (tangent.lengthSq() > 1e-8) {
+      tangent.normalize();
+      const strength = THREE.MathUtils.clamp(Math.abs(Math.log(factor)) * 0.22, 0, 0.16);
+      currentDir.addScaledVector(tangent, factor < 1 ? strength : -strength).normalize();
+    }
   }
-  locate(false);
+  camera.position.copy(currentDir.multiplyScalar(EARTH_RADIUS + nextAlt));
+  controls.update();
 }
 
-function locate(force) {
+function applyKeyRotation() {
+  if (!pressedKeys.size) return;
+  const angle = 0.012;
+  const pos = camera.position;
+  const dir = pos.clone().normalize();
+  const right = new THREE.Vector3().crossVectors(camera.up, dir).normalize();
+  if (pressedKeys.has("ArrowLeft")) pos.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+  if (pressedKeys.has("ArrowRight")) pos.applyAxisAngle(new THREE.Vector3(0, 1, 0), -angle);
+  if (pressedKeys.has("ArrowUp")) pos.applyAxisAngle(right, -angle);
+  if (pressedKeys.has("ArrowDown")) pos.applyAxisAngle(right, angle);
+  flyDest = null;
+}
+
+function locate() {
   if (!navigator.geolocation) {
-    setStatus("브라우저 위치 API를 사용할 수 없어 Seoul 프리셋으로 시작합니다.");
-    loadTerrain({ resetOrigin: true });
+    setStatus("브라우저 위치 API를 사용할 수 없습니다.");
     return;
   }
-
   setStatus("현재 위치를 찾는 중...");
   navigator.geolocation.getCurrentPosition(
     (pos) => {
-      els.lat.value = pos.coords.latitude.toFixed(6);
-      els.lon.value = pos.coords.longitude.toFixed(6);
-      loadTerrain({ resetOrigin: true });
+      flyTo(pos.coords.latitude, pos.coords.longitude, altitudeForZoom(Math.max(8, Number(els.zoom.value) || 8)));
+      setStatus(`현재 위치로 이동: ${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`);
     },
-    () => {
-      setStatus(force ? "위치 권한을 받을 수 없습니다." : "위치 권한 없음. Seoul 프리셋으로 시작합니다.");
-      loadTerrain({ resetOrigin: true });
-    },
+    () => setStatus("위치 권한을 받을 수 없습니다."),
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
   );
 }
 
-function animate() {
-  S.animationFrame = requestAnimationFrame(animate);
-  const now = performance.now();
-  const deltaSeconds = S.lastFrameTime ? Math.min(0.08, (now - S.lastFrameTime) / 1000) : 0;
-  S.lastFrameTime = now;
-  updateMovement(deltaSeconds);
-  if (S.movementDirty && !pressedKeys.size) {
-    S.movementDirty = false;
-    saveState();
-    fillBboxFromCurrent();
+function fillBboxFromGlobe() {
+  const { lat, lon } = worldToLatLon(camera.position);
+  const z = clamp(Math.round(effectiveZoom()), BASE_Z, currentMaxZoom());
+  const half = (360 / 2 ** z) * 4;
+  els.north.value = clamp(lat + half, -85, 85).toFixed(6);
+  els.south.value = clamp(lat - half, -85, 85).toFixed(6);
+  els.west.value = (lon - half).toFixed(6);
+  els.east.value = (lon + half).toFixed(6);
+}
+
+function isVisible(node, camPos, camLen) {
+  const horizonCos = EARTH_RADIUS / camLen;
+  tmpDir.copy(camPos).normalize();
+  const dot = node.centerDir.dot(tmpDir);
+  const margin = node.boundingRadius / camLen;
+  if (dot < horizonCos - margin) return false;
+  return frustum.intersectsSphere(node.boundingSphere);
+}
+
+function needsSplit(node, camPos) {
+  if (node.z >= currentMaxZoom()) return false;
+  const distance = camPos.distanceTo(node.center);
+  return distance < node.spanMeters * SPLIT_K;
+}
+
+function ensureLeaf(node) {
+  if (node.state === "idle") node.load(getExaggeration);
+  if (node.children) for (const child of node.children) child.setMeshVisible(false);
+  node.setMeshVisible(node.isLoaded());
+}
+
+function hideSubtree(node) {
+  node.setMeshVisible(false);
+  node.disposeChildren();
+}
+
+function traverse(node, camPos, camLen) {
+  if (!isVisible(node, camPos, camLen)) {
+    hideSubtree(node);
+    return;
   }
-  if (netDirty) {
+  if (needsSplit(node, camPos)) {
+    node.ensureChildren();
+    let allReady = true;
+    for (const child of node.children) {
+      if (!child.isLoaded()) {
+        if (child.state === "idle") child.load(getExaggeration);
+        allReady = false;
+      }
+    }
+    if (allReady) {
+      node.setMeshVisible(false);
+      for (const child of node.children) traverse(child, camPos, camLen);
+    } else {
+      ensureLeaf(node);
+    }
+  } else {
+    ensureLeaf(node);
+    node.disposeChildren();
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  applyKeyRotation();
+  if (flyDest) {
+    camera.position.lerp(flyDest, 0.08);
+    if (camera.position.distanceTo(flyDest) < EARTH_RADIUS * 0.002) flyDest = null;
+  }
+  controls.update();
+
+  const distance = camera.position.length();
+  const alt = Math.max(1, distance - EARTH_RADIUS);
+  viewTilt = clamp(viewTilt, TILT_MIN, TILT_MAX);
+  if (Math.abs(viewTilt) > 0.001) camera.rotateX(-viewTilt);
+
+  controls.rotateSpeed = THREE.MathUtils.clamp((alt / distance) * 0.36, 0.02, 0.24);
+  camera.near = Math.max(2, alt * 0.03);
+  camera.far = distance + EARTH_RADIUS * 1.5;
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  frustum.setFromProjectionMatrix(projScreenMatrix);
+
+  const camPos = camera.position;
+  const camLen = camPos.length();
+  for (const root of roots) traverse(root, camPos, camLen);
+
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+
+  frameCount += 1;
+  if (frameCount % 8 === 0) {
+    refreshExaggeration(false);
+    updateLabels(camera, frustum, effectiveZoom());
+    updateHud();
+  }
+  if (netDirty || frameCount % 15 === 0) {
     netDirty = false;
     updateNetReadout();
   }
-  S.controls.update();
-  constrainMapPanToPoles();
-  updateMapPanNavigation();
-  updateCompass();
-  S.renderer.render(S.scene, S.camera);
+  if (frameCount % 40 === 0) {
+    saveState();
+    persistNetStats();
+  }
+}
+
+function updateHud() {
+  const { lat, lon } = worldToLatLon(camera.position);
+  const z = effectiveZoom();
+  els.tileHud.textContent = `z${z.toFixed(1)} ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  els.rangeHud.textContent = `고도 ${(Math.max(0, camera.position.length() - EARTH_RADIUS) / 1000).toFixed(1)}km`;
+  els.resolutionHud.textContent = `${getTileSegments() + 1}x${getTileSegments() + 1} / tile`;
+  if (document.activeElement !== els.lat) els.lat.value = lat.toFixed(6);
+  if (document.activeElement !== els.lon) els.lon.value = lon.toFixed(6);
+  if (document.activeElement !== els.zoom) els.zoom.value = String(Math.round(z));
+
+  const offset = camera.position.clone();
+  const tiltDegrees = Math.round(THREE.MathUtils.radToDeg(viewTilt));
+  if (els.tiltAngleReadout) els.tiltAngleReadout.textContent = `${tiltDegrees}\u00b0`;
+
+  if (els.compassNeedle) {
+    const dir = offset.clone().negate().normalize();
+    const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize();
+    const up = new THREE.Vector3().crossVectors(right, dir);
+    const sx = NORTH.dot(right);
+    const sy = NORTH.dot(up);
+    const angle = Math.atan2(sx, sy);
+    els.compassNeedle.style.transform = `translateX(-50%) rotate(${angle}rad)`;
+  }
+}
+
+function countLoaded(node) {
+  let loaded = node.isLoaded() ? 1 : 0;
+  let total = 1;
+  if (node.children) {
+    for (const child of node.children) {
+      const c = countLoaded(child);
+      loaded += c.loaded;
+      total += c.total;
+    }
+  }
+  return { loaded, total };
+}
+
+function updateCoverageHud() {
+  const total = roots.reduce((sum, root) => {
+    const c = countLoaded(root);
+    sum.loaded += c.loaded;
+    sum.total += c.total;
+    return sum;
+  }, { loaded: 0, total: 0 });
+  els.coverageHud.textContent = `${total.loaded}/${total.total}`;
+}
+
+function updateResolutionReadout() {
+  els.resolutionSliderValue.textContent = `${els.resolution.value}%`;
+}
+
+function updateNetReadout() {
+  const { receivedBytes, sentBytes, cacheBytes } = getNetStats();
+  els.net.textContent = `네트워크 ↓ ${formatBytes(receivedBytes)} · ↑ ${formatBytes(sentBytes)} · 캐시 ${formatBytes(cacheBytes)}`;
+}
+
+async function updateCacheStatus() {
+  const count = await tileCacheCount();
+  els.cacheStatus.textContent = `캐시: ${count.toLocaleString()} 타일`;
 }
 
 window.addEventListener("beforeunload", () => {
-  cancelAnimationFrame(S.animationFrame);
+  saveState();
   persistNetStats();
 });
-// 모바일에서 탭 전환·종료 시 beforeunload가 안 뜰 수 있어 보조로 저장한다.
 window.addEventListener("pagehide", persistNetStats);
 
 init();

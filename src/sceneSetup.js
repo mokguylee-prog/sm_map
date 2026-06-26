@@ -3,9 +3,10 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { TILE_WORLD } from "./config.js";
+import { NAV_LAT_MAX, NAV_LAT_MIN, TILE_WORLD } from "./config.js";
 import { els } from "./dom.js";
 import { S } from "./state.js";
+import { latLonToTileFloat } from "./tileMath.js";
 import { clamp, roundRect } from "./utils.js";
 
 export function setupThree() {
@@ -189,8 +190,9 @@ export function resize() {
 }
 
 export function updateCompass() {
-  if (!els.compassNeedle) return;
   if (!S.camera || !S.controls) return;
+  updateTiltReadout();
+  if (!els.compassNeedle) return;
   const center = S.controls.target.clone();
   const north = center.clone().add(new THREE.Vector3(0, 0, -TILE_WORLD));
   center.project(S.camera);
@@ -200,6 +202,14 @@ export function updateCompass() {
   if (dx * dx + dy * dy < 0.000001) return;
   const angle = Math.atan2(dx, dy);
   els.compassNeedle.style.transform = `translateX(-50%) rotate(${angle}rad)`;
+}
+
+function updateTiltReadout() {
+  if (!els.tiltAngleReadout) return;
+  const offset = S.camera.position.clone().sub(S.controls.target);
+  const spherical = new THREE.Spherical().setFromVector3(offset);
+  const tiltDegrees = Math.round(THREE.MathUtils.radToDeg(spherical.phi));
+  els.tiltAngleReadout.textContent = `${tiltDegrees}°`;
 }
 
 export function constrainMapPanToPoles() {
@@ -213,8 +223,10 @@ export function constrainMapPanToPoles() {
     S.controls.target.x += worldWidth;
     S.camera.position.x += worldWidth;
   }
-  const minZ = (0 - S.worldOriginTileFloat.y) * TILE_WORLD;
-  const maxZ = (tileLimit - S.worldOriginTileFloat.y) * TILE_WORLD;
+  const minTileY = latLonToTileFloat(NAV_LAT_MAX, 0, S.worldOriginTileFloat.z).y;
+  const maxTileY = latLonToTileFloat(NAV_LAT_MIN, 0, S.worldOriginTileFloat.z).y;
+  const minZ = (minTileY - S.worldOriginTileFloat.y) * TILE_WORLD;
+  const maxZ = (maxTileY - S.worldOriginTileFloat.y) * TILE_WORLD;
   const clampedZ = clamp(S.controls.target.z, minZ, maxZ);
   const deltaZ = clampedZ - S.controls.target.z;
   if (deltaZ === 0) return;

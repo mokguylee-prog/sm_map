@@ -8,6 +8,8 @@ import {
   WHEEL_ZOOM_COOLDOWN_MS,
   MIN_ZOOM,
   MAX_ZOOM,
+  NAV_LAT_MAX,
+  NAV_LAT_MIN,
 } from "./config.js";
 import { els, setStatus } from "./dom.js";
 import { S, pressedKeys } from "./state.js";
@@ -73,9 +75,9 @@ export function onPointerDown(event) {
   pointerDownX = event.clientX;
   pointerDownY = event.clientY;
   pointerDownButton = event.button;
-  // 마우스 왼쪽 드래그만 지형 이동으로 추적한다.
-  // 터치 한 손가락 드래그는 OrbitControls의 카메라 회전에 사용한다.
-  S.mapPanPointerDown = event.pointerType === "mouse" && event.button === 0;
+  // 마우스 왼쪽 드래그와 터치 한 손가락 드래그를 지도 이동으로 추적한다.
+  // 실제 target 이동은 OrbitControls(PAN)가 맡고, updateMapPanNavigation이 위경도/타일 로딩을 따라간다.
+  S.mapPanPointerDown = (event.pointerType === "mouse" && event.button === 0) || event.pointerType === "touch";
   S.mapPanDragging = false;
   S.mapPanSettleFrames = 0;
 }
@@ -96,7 +98,7 @@ export function onClickMove(event) {
   const next = terrainLatLonFromPointer(event);
   if (!next) return;
 
-  els.lat.value = clamp(next.lat, -85, 85).toFixed(6);
+  els.lat.value = clamp(next.lat, NAV_LAT_MIN, NAV_LAT_MAX).toFixed(6);
   els.lon.value = next.lon.toFixed(6);
   setStatus(`이동: ${next.lat.toFixed(5)}, ${next.lon.toFixed(5)} (클릭 지점)`);
   // keepCamera: 현재 카메라 뷰(각도·거리)를 그대로 유지한다.
@@ -302,7 +304,7 @@ export function zoomTerrainBy(delta) {
 function changeTerrainZoom(nextZoom, cursorPosition, statusSuffix) {
   const viewAnchor = currentViewAnchorLatLon();
   if (cursorPosition) {
-    els.lat.value = clamp(cursorPosition.lat, -85, 85).toFixed(6);
+    els.lat.value = clamp(cursorPosition.lat, NAV_LAT_MIN, NAV_LAT_MAX).toFixed(6);
     els.lon.value = cursorPosition.lon.toFixed(6);
   }
   els.zoom.value = nextZoom;
@@ -318,9 +320,11 @@ function currentViewAnchorLatLon() {
   const z = S.worldOriginTileFloat.z;
   const limit = 2 ** z;
   const tileWorld = tileWorldSize();
+  const minTileY = latLonToTileFloat(NAV_LAT_MAX, 0, z).y;
+  const maxTileY = latLonToTileFloat(NAV_LAT_MIN, 0, z).y;
   const rawTileX = S.worldOriginTileFloat.x + S.controls.target.x / tileWorld;
   const tileX = ((rawTileX % limit) + limit) % limit;
-  const tileY = clamp(S.worldOriginTileFloat.y + S.controls.target.z / tileWorld, 0, limit);
+  const tileY = clamp(S.worldOriginTileFloat.y + S.controls.target.z / tileWorld, minTileY, maxTileY);
   return tileFloatToLatLon(tileX, tileY, z);
 }
 
@@ -333,12 +337,14 @@ export function updateMapPanNavigation() {
   const z = Number(els.zoom.value);
   const limit = 2 ** z;
   const tileWorld = tileWorldSize();
+  const minTileY = latLonToTileFloat(NAV_LAT_MAX, 0, z).y;
+  const maxTileY = latLonToTileFloat(NAV_LAT_MIN, 0, z).y;
   const rawTileX = S.worldOriginTileFloat.x + S.controls.target.x / tileWorld;
   const tileX = ((rawTileX % limit) + limit) % limit;
-  const tileY = clamp(S.worldOriginTileFloat.y + S.controls.target.z / tileWorld, 0, limit);
+  const tileY = clamp(S.worldOriginTileFloat.y + S.controls.target.z / tileWorld, minTileY, maxTileY);
   const next = tileFloatToLatLon(tileX, tileY, z);
 
-  els.lat.value = clamp(next.lat, -85, 85).toFixed(6);
+  els.lat.value = clamp(next.lat, NAV_LAT_MIN, NAV_LAT_MAX).toFixed(6);
   els.lon.value = next.lon.toFixed(6);
   S.movementDirty = true;
   updatePlayerMarker({ followCamera: false });
@@ -385,10 +391,12 @@ export function updateMovement(deltaSeconds) {
   const distance = MOVE_TILES_PER_SECOND * deltaSeconds;
   pos.x -= move.x * distance;
   pos.y -= move.z * distance;
-  pos.y = clamp(pos.y, 0, 2 ** z - 1);
+  const minTileY = latLonToTileFloat(NAV_LAT_MAX, 0, z).y;
+  const maxTileY = latLonToTileFloat(NAV_LAT_MIN, 0, z).y;
+  pos.y = clamp(pos.y, minTileY, maxTileY);
 
   const next = tileFloatToLatLon(pos.x, pos.y, z);
-  els.lat.value = clamp(next.lat, -85, 85).toFixed(6);
+  els.lat.value = clamp(next.lat, NAV_LAT_MIN, NAV_LAT_MAX).toFixed(6);
   els.lon.value = next.lon.toFixed(6);
   S.movementDirty = true;
   updatePlayerMarker();
