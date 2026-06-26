@@ -244,6 +244,21 @@ function bindEvents() {
   els.panelClose.addEventListener("click", () => setPanelOpen(false));
   els.panelBackdrop.addEventListener("click", () => setPanelOpen(false));
 
+  // 좌상단 표시 토글: 라벨 / 상태바 On·Off.
+  const labelToggle = document.querySelector("#labelToggle");
+  const statusToggle = document.querySelector("#statusToggle");
+  const statusStrip = document.querySelector(".status-strip");
+  if (labelToggle) {
+    labelToggle.addEventListener("change", () => {
+      labelRenderer.domElement.style.display = labelToggle.checked ? "" : "none";
+    });
+  }
+  if (statusToggle && statusStrip) {
+    statusToggle.addEventListener("change", () => {
+      statusStrip.style.display = statusToggle.checked ? "" : "none";
+    });
+  }
+
   els.source.addEventListener("change", () => {
     if (els.source.value !== "custom") els.url.value = SOURCES[els.source.value];
     saveState();

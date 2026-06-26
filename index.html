@@ -19,6 +19,10 @@
     <main class="app-shell">
       <section class="viewport" aria-label="3D 지형 뷰어">
         <canvas id="terrainCanvas"></canvas>
+        <div class="view-toggles" aria-label="표시 토글">
+          <label><input type="checkbox" id="labelToggle" checked> 라벨</label>
+          <label><input type="checkbox" id="statusToggle" checked> 상태바</label>
+        </div>
         <div class="hud">
           <div>
             <span class="hud-label">타일</span>

@@ -126,9 +126,37 @@ select {
   opacity: 0.9;
 }
 
+.view-toggles {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  z-index: 14;
+  display: flex;
+  gap: 10px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(21, 27, 25, 0.78);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+}
+
+.view-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.view-toggles input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .hud {
   position: absolute;
-  top: 18px;
+  top: 58px;
   left: 18px;
   display: grid;
   grid-template-columns: repeat(4, minmax(112px, auto));
@@ -305,7 +333,7 @@ select {
 .touch-controls {
   position: absolute;
   right: 18px;
-  bottom: 96px;
+  bottom: 120px;
   z-index: 5; /* 상태 표시줄(.status-strip) 위에 항상 보이도록 */
   display: flex;
   flex-direction: column;
@@ -669,8 +697,13 @@ button:disabled {
     bottom: 10px;
   }
 
-  .hud {
+  .view-toggles {
     top: 10px;
+    left: 10px;
+  }
+
+  .hud {
+    top: 52px;
     left: 10px;
     right: auto;
     width: min(calc(100% - 176px), 420px);
@@ -697,7 +730,7 @@ button:disabled {
   .touch-controls {
     display: flex;
     right: 10px;
-    bottom: 66px;
+    bottom: 92px;
   }
 
   .menu-toggle {
