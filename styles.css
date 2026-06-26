@@ -227,52 +227,65 @@ body.ui-collapsed .mobile-signature {
 }
 
 .compass-stack {
-  position: absolute;
-  top: 18px;
+  position: fixed;
+  top: 74px;
   right: 18px;
   z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .tilt-button {
-  width: 44px;
-  height: 30px;
+  width: 36px;
+  height: 34px;
+  min-height: 34px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  background: rgba(21, 27, 25, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 46%),
+    rgba(21, 27, 25, 0.82);
   color: var(--text);
   font-size: 16px;
+  font-weight: 800;
   line-height: 1;
   backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   cursor: pointer;
 }
 
 .tilt-button:hover {
   border-color: var(--accent-2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 46%),
+    rgba(35, 46, 43, 0.9);
 }
 
-.compass-row {
+.tilt-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
+  width: 112px;
 }
 
 .tilt-readout {
-  min-width: 48px;
-  padding: 7px 9px;
+  min-width: 34px;
+  padding: 8px 6px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  background: rgba(21, 27, 25, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 50%),
+    rgba(21, 27, 25, 0.82);
   color: var(--text);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1;
   text-align: center;
   backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 /* 스택 안에서는 나침반이 흐름 배치되도록 절대위치 해제(자식 N/E/S/W 기준점은 유지). */
@@ -290,10 +303,16 @@ body.ui-collapsed .mobile-signature {
   height: 112px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 50%;
-  background: rgba(21, 27, 25, 0.72);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(240, 199, 102, 0.12), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.12), transparent 44%),
+    rgba(21, 27, 25, 0.78);
   color: var(--text);
   backdrop-filter: blur(8px);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 12px 22px rgba(255, 255, 255, 0.05);
   cursor: pointer;
 }
 
@@ -382,13 +401,16 @@ body.ui-collapsed .mobile-signature {
   height: 44px;
   min-height: 44px;
   padding: 0;
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  background: rgba(21, 27, 25, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 46%),
+    rgba(21, 27, 25, 0.82);
   font-size: 23px;
   font-weight: 750;
   line-height: 1;
   backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .resolution-control {
@@ -400,8 +422,11 @@ body.ui-collapsed .mobile-signature {
   padding: 9px 0 7px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  background: rgba(21, 27, 25, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 46%),
+    rgba(21, 27, 25, 0.82);
   backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .resolution-control input[type="range"] {
@@ -447,9 +472,12 @@ body.ui-collapsed .mobile-signature {
   padding: 0;
   border-color: rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  background: rgba(21, 27, 25, 0.86);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 48%),
+    rgba(21, 27, 25, 0.86);
   backdrop-filter: blur(8px);
-  transition: background 160ms ease-out;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: background 160ms ease-out, border-color 160ms ease-out;
 }
 
 .menu-toggle span {
@@ -501,9 +529,12 @@ body.panel-open .menu-toggle {
   padding: 0 14px;
   border-color: rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  background: rgba(21, 27, 25, 0.86);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 48%),
+    rgba(21, 27, 25, 0.86);
   font-weight: 750;
   backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   transform: translateX(0);
   transition: transform 160ms ease-out, background 160ms ease-out;
 }
@@ -856,6 +887,29 @@ button:disabled {
     height: 82px;
     top: 10px;
     right: 10px;
+  }
+
+  .compass-stack {
+    top: 64px;
+    right: 10px;
+  }
+
+  .tilt-controls {
+    width: 82px;
+    gap: 4px;
+  }
+
+  .tilt-button {
+    width: 27px;
+    height: 30px;
+    min-height: 30px;
+    font-size: 13px;
+  }
+
+  .tilt-readout {
+    min-width: 28px;
+    padding: 7px 4px;
+    font-size: 11px;
   }
 
   /* 모바일에서도 해상도와 확대/축소 컨트롤을 항상 표시한다. */
