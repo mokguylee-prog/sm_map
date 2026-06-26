@@ -1,8 +1,8 @@
-# 이상목지형탐색기
+# 이상목지구본지형탐색기
 
 Terrarium RGB elevation tiles를 브라우저에서 받아 3D 지형으로 탐색하는 순수 프론트엔드 웹앱입니다.
 
-![이상목지형탐색기 screenshot](assets/screenshot.png)
+![이상목지구본지형탐색기 screenshot](assets/screenshot.png)
 
 ## 실행
 
