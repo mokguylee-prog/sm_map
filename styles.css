@@ -104,6 +104,8 @@ select {
   /* 오른쪽 확대/축소·해상도 컨트롤 영역(약 62px)을 침범하지 않도록 여백을 둔다. */
   right: 78px;
   bottom: 18px;
+  /* 라벨 레이어(z 4)·터치 컨트롤(z 12) 등 위에 항상 보이도록. */
+  z-index: 14;
   display: flex;
   justify-content: space-between;
   gap: 12px;
