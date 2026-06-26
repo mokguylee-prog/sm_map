@@ -150,9 +150,16 @@ function pinchPointerDistance() {
   return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
 }
 
+function centroid() {
+  const pts = [...activePointers.values()];
+  return { x: (pts[0].x + pts[1].x) * 0.5, y: (pts[0].y + pts[1].y) * 0.5 };
+}
+
 function beginTwoFingerGesture() {
   const ids = [...activePointers.keys()];
-  twoFingerGesture = { ids };
+  const c = centroid();
+  // mode: null(미정) → "zoom"(핀치) | "rotate"(회전/틸트). 한 제스처 동안 하나로 고정해 충돌 방지.
+  twoFingerGesture = { ids, mode: null, startDist: pinchPointerDistance(), startCx: c.x, startCy: c.y };
   pinchBaselineDist = pinchPointerDistance();
   updatePreviousTouchPositions();
 }
@@ -164,29 +171,15 @@ function updatePreviousTouchPositions() {
   }
 }
 
-function movedDistance(point) {
-  return Math.hypot(point.x - point.startX, point.y - point.startY);
-}
-
 function applyTwoFingerOrbit() {
   if (!S.camera || !S.controls || !twoFingerGesture) return;
   const pts = twoFingerGesture.ids.map((id) => activePointers.get(id)).filter(Boolean);
   if (pts.length !== 2) return;
 
-  // 더 적게 움직인 손가락을 기준점으로 보고, 많이 움직인 쪽의 변화량으로 회전/틸트한다.
-  // 두 손가락을 같이 움직이면 평균 이동량을 써서 어색한 끊김을 줄인다.
-  const firstMove = movedDistance(pts[0]);
-  const secondMove = movedDistance(pts[1]);
-  const mover = Math.abs(firstMove - secondMove) > 3
-    ? (firstMove > secondMove ? pts[0] : pts[1])
-    : {
-        x: (pts[0].x + pts[1].x) * 0.5,
-        y: (pts[0].y + pts[1].y) * 0.5,
-        prevX: (pts[0].prevX + pts[1].prevX) * 0.5,
-        prevY: (pts[0].prevY + pts[1].prevY) * 0.5,
-      };
-  const dx = mover.x - mover.prevX;
-  const dy = mover.y - mover.prevY;
+  // 회전/틸트는 두 손가락 '중심점(centroid)'의 이동으로 구동한다.
+  // (핀치는 거리만 변하고 중심점은 거의 안 움직이므로, 모드 고정과 함께 줌과 섞이지 않는다.)
+  const dx = (pts[0].x + pts[1].x) * 0.5 - (pts[0].prevX + pts[1].prevX) * 0.5;
+  const dy = (pts[0].y + pts[1].y) * 0.5 - (pts[0].prevY + pts[1].prevY) * 0.5;
   if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return;
 
   const target = S.controls.target;
@@ -232,29 +225,39 @@ export function onPinchPointerMove(event) {
   const point = activePointers.get(event.pointerId);
   point.x = event.clientX;
   point.y = event.clientY;
-  if (activePointers.size !== 2 || pinchBaselineDist === 0) {
+  if (activePointers.size !== 2 || !twoFingerGesture || pinchBaselineDist === 0) {
     point.prevX = point.x;
     point.prevY = point.y;
     return;
   }
 
-  applyTwoFingerOrbit();
-
-  const now = performance.now();
   const dist = pinchPointerDistance();
-  if (now - lastPinchZoomTime < PINCH_ZOOM_COOLDOWN_MS) {
-    updatePreviousTouchPositions();
-    return;
+  const c = centroid();
+
+  // 제스처 모드 분류(한 번만): 손가락 간 거리 변화가 크면 핀치=줌, 중심점 이동이 크면 회전/틸트.
+  if (!twoFingerGesture.mode) {
+    const distDelta = Math.abs(dist - twoFingerGesture.startDist);
+    const centroidDelta = Math.hypot(c.x - twoFingerGesture.startCx, c.y - twoFingerGesture.startCy);
+    if (distDelta > 12 && distDelta >= centroidDelta) twoFingerGesture.mode = "zoom";
+    else if (centroidDelta > 12 && centroidDelta > distDelta) twoFingerGesture.mode = "rotate";
   }
-  const ratio = dist / pinchBaselineDist;
-  if (ratio >= PINCH_ZOOM_RATIO) {
-    lastPinchZoomTime = now;
-    pinchBaselineDist = dist;
-    zoomTerrainBy(1);
-  } else if (ratio <= 1 / PINCH_ZOOM_RATIO) {
-    lastPinchZoomTime = now;
-    pinchBaselineDist = dist;
-    zoomTerrainBy(-1);
+
+  if (twoFingerGesture.mode === "rotate") {
+    applyTwoFingerOrbit();
+  } else if (twoFingerGesture.mode === "zoom") {
+    const now = performance.now();
+    if (now - lastPinchZoomTime >= PINCH_ZOOM_COOLDOWN_MS) {
+      const ratio = dist / pinchBaselineDist;
+      if (ratio >= PINCH_ZOOM_RATIO) {
+        lastPinchZoomTime = now;
+        pinchBaselineDist = dist;
+        zoomTerrainBy(1);
+      } else if (ratio <= 1 / PINCH_ZOOM_RATIO) {
+        lastPinchZoomTime = now;
+        pinchBaselineDist = dist;
+        zoomTerrainBy(-1);
+      }
+    }
   }
 
   updatePreviousTouchPositions();
