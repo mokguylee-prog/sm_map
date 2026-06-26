@@ -34,7 +34,7 @@ export const WORLD_MOUNTAIN_LABELS = [
   { name: "시샤팡마", lat: 28.3522, lon: 85.7797, minZoom: 7 },
   { name: "브로드피크", lat: 35.8106, lon: 76.5681, minZoom: 7 },
   { name: "푼착자야산", lat: -4.0833, lon: 137.1833, minZoom: 7 },
-  { name: "백두산", lat: 40.94, lon: 126.83, minZoom: 7 },
+  { name: "백두산", lat: 41.993, lon: 128.077, minZoom: 7 },
   { name: "로건산", lat: 60.5672, lon: -140.4053, minZoom: 7 },
   { name: "추크슈피체산", lat: 47.4212, lon: 10.9863, minZoom: 7 },
   { name: "탐보라 화산", lat: -8.2453, lon: 117.9928, minZoom: 7 },

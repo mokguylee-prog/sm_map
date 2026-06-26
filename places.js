@@ -63,6 +63,15 @@ export const REGIONAL_PLACE_LABELS = [
   { name: "울릉도", lat: 37.4844, lon: 130.9057, minZoom: 6 },
   { name: "독도", lat: 37.2411, lon: 131.8649, minZoom: 6 },
   { name: "제주", lat: 33.4996, lon: 126.5312, minZoom: 6 },
+  { name: "금강산", lat: 38.6600, lon: 128.1000, minZoom: 7 },
+  { name: "묘향산", lat: 40.0100, lon: 126.3400, minZoom: 8 },
+  { name: "관모봉", lat: 41.4600, lon: 129.3600, minZoom: 8 },
+  { name: "칠보산", lat: 40.6500, lon: 129.3700, minZoom: 9 },
+  { name: "구월산", lat: 38.5000, lon: 125.3600, minZoom: 9 },
+  { name: "두류산", lat: 41.3000, lon: 127.4000, minZoom: 9 },
+  { name: "북수백산", lat: 41.4300, lon: 128.0000, minZoom: 9 },
+  { name: "낭림산", lat: 40.4000, lon: 126.8000, minZoom: 9 },
+  { name: "백암산", lat: 41.3500, lon: 129.0000, minZoom: 9 },
 ];
 
 export const PLACE_LABELS = [
