@@ -143,7 +143,6 @@ let twoFingerGesture = null;
 const PINCH_ZOOM_RATIO = 1.08; // 기준 대비 8% 벌어지거나 좁혀지면 1단계 줌
 const PINCH_ZOOM_COOLDOWN_MS = 120;
 const TWO_FINGER_ROTATE_SPEED = 0.006;
-const TWO_FINGER_TILT_SPEED = 0.005;
 
 function pinchPointerDistance() {
   const pts = [...activePointers.values()];
@@ -176,23 +175,36 @@ function applyTwoFingerOrbit() {
   const pts = twoFingerGesture.ids.map((id) => activePointers.get(id)).filter(Boolean);
   if (pts.length !== 2) return;
 
-  // 회전/틸트는 두 손가락 '중심점(centroid)'의 이동으로 구동한다.
-  // (핀치는 거리만 변하고 중심점은 거의 안 움직이므로, 모드 고정과 함께 줌과 섞이지 않는다.)
+  // 두 손가락은 '방위 회전(theta)'만 담당한다(중심점 좌우 이동).
+  // 경사(틸트)는 나침반 위/아래 버튼 전용이라 여기서 처리하지 않는다.
   const dx = (pts[0].x + pts[1].x) * 0.5 - (pts[0].prevX + pts[1].prevX) * 0.5;
-  const dy = (pts[0].y + pts[1].y) * 0.5 - (pts[0].prevY + pts[1].prevY) * 0.5;
-  if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return;
+  if (Math.abs(dx) < 0.01) return;
 
   const target = S.controls.target;
   const offset = S.camera.position.clone().sub(target);
   const spherical = new THREE.Spherical().setFromVector3(offset);
   spherical.theta -= dx * TWO_FINGER_ROTATE_SPEED;
+  spherical.makeSafe();
+
+  offset.setFromSpherical(spherical);
+  S.camera.position.copy(target).add(offset);
+  S.camera.lookAt(target);
+  S.controls.update();
+}
+
+// 경사(틸트): 카메라 폴라각(phi)을 deltaPhi(rad)만큼 조정. 나침반 위/아래 버튼에서 호출.
+// phi 작음 = 수직 내려다보기, phi 큼 = 지평선 쪽으로 비스듬히.
+export function tiltCameraBy(deltaPhi) {
+  if (!S.camera || !S.controls) return;
+  const target = S.controls.target;
+  const offset = S.camera.position.clone().sub(target);
+  const spherical = new THREE.Spherical().setFromVector3(offset);
   spherical.phi = clamp(
-    spherical.phi + dy * TWO_FINGER_TILT_SPEED,
+    spherical.phi + deltaPhi,
     S.controls.minPolarAngle ?? 0.01,
     S.controls.maxPolarAngle ?? Math.PI - 0.01,
   );
   spherical.makeSafe();
-
   offset.setFromSpherical(spherical);
   S.camera.position.copy(target).add(offset);
   S.camera.lookAt(target);

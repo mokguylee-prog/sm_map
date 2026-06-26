@@ -38,6 +38,7 @@ import {
   updateMovement,
   updateMapPanNavigation,
   zoomTerrainBy,
+  tiltCameraBy,
 } from "./src/movement.js";
 import { fillBboxFromCurrent, downloadBbox } from "./src/download.js";
 import { registerTileCacheWorker, tileCacheCount, clearTileCache } from "./src/tileCachePersist.js";
@@ -145,6 +146,9 @@ function bindEvents() {
   });
   els.zoomIn.addEventListener("click", () => zoomTerrainBy(1));
   els.zoomOut.addEventListener("click", () => zoomTerrainBy(-1));
+  // 경사(틸트): 나침반 위(▲)/아래(▼) 버튼. 누르고 있으면 연속 적용.
+  bindHoldTilt(els.tiltUp, 0.04);    // ▲ 지평선 쪽으로 기울이기(phi 증가)
+  bindHoldTilt(els.tiltDown, -0.04); // ▼ 수직 내려다보기로(phi 감소)
   // 드래그 중에는 라벨만 즉시 갱신하고, 손을 떼면(change) 해상도를 적용해 다시 그린다.
   els.resolution.addEventListener("input", () => {
     S.resolutionScale = Number(els.resolution.value) / 100;
@@ -186,6 +190,23 @@ function bindEvents() {
       loadTerrain({ keepCamera: true, resetOrigin: true });
     });
   });
+}
+
+// 틸트 버튼: 누르는 동안 deltaPhi를 반복 적용(클릭 한 번이면 1회).
+function bindHoldTilt(button, deltaPhi) {
+  if (!button) return;
+  let timer = null;
+  const stop = () => { if (timer) { window.clearInterval(timer); timer = null; } };
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    tiltCameraBy(deltaPhi);
+    stop();
+    timer = window.setInterval(() => tiltCameraBy(deltaPhi), 33);
+  });
+  button.addEventListener("pointerup", stop);
+  button.addEventListener("pointerleave", stop);
+  button.addEventListener("pointercancel", stop);
+  window.addEventListener("blur", stop);
 }
 
 function setPanelOpen(open) {

@@ -117,6 +117,42 @@ select {
   white-space: nowrap;
 }
 
+.compass-stack {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.tilt-button {
+  width: 44px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(21, 27, 25, 0.78);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+}
+
+.tilt-button:hover {
+  border-color: var(--accent-2);
+}
+
+/* 스택 안에서는 나침반이 흐름 배치되도록 절대위치 해제(자식 N/E/S/W 기준점은 유지). */
+.compass-stack .compass {
+  position: relative;
+  top: auto;
+  right: auto;
+}
+
 .compass {
   position: absolute;
   top: 18px;

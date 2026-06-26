@@ -22,6 +22,8 @@ export const els = {
   zoom: document.querySelector("#zoomInput"),
   zoomIn: document.querySelector("#zoomInButton"),
   zoomOut: document.querySelector("#zoomOutButton"),
+  tiltUp: document.querySelector("#tiltUpButton"),
+  tiltDown: document.querySelector("#tiltDownButton"),
   resolution: document.querySelector("#resolutionInput"),
   resolutionSliderValue: document.querySelector("#resolutionSliderValue"),
   exaggeration: document.querySelector("#exaggerationInput"),
