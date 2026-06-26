@@ -28,9 +28,10 @@ export function setupThree() {
     RIGHT: THREE.MOUSE.ROTATE,
   };
   S.controls.touches = {
-    // 한 손가락 드래그: 좌우 회전 + 상하 카메라 각도 변경.
-    ONE: THREE.TOUCH.ROTATE,
-    // 두 손가락 제스처는 movement.js에서 직접 처리한다.
+    // 한 손가락 드래그: 지도 이동(pan). 데스크톱 좌클릭 PAN과 동일하게 controls.target을 옮기고
+    // updateMapPanNavigation이 위경도/타일을 따라가게 한다. (회전은 두 손가락에 맡긴다)
+    ONE: THREE.TOUCH.PAN,
+    // 두 손가락 제스처(핀치 줌 / 회전·틸트)는 movement.js에서 직접 처리한다.
     // OrbitControls에 같이 맡기면 enableZoom=false 상태의 DOLLY와 커스텀 핀치 로직이 충돌한다.
     TWO: null,
   };
