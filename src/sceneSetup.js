@@ -30,8 +30,9 @@ export function setupThree() {
   S.controls.touches = {
     // 한 손가락 드래그: 좌우 회전 + 상하 카메라 각도 변경.
     ONE: THREE.TOUCH.ROTATE,
-    // 두 손가락: 회전은 OrbitControls, 핀치 줌 단계는 movement.js가 처리한다.
-    TWO: THREE.TOUCH.DOLLY_ROTATE,
+    // 두 손가락 제스처는 movement.js에서 직접 처리한다.
+    // OrbitControls에 같이 맡기면 enableZoom=false 상태의 DOLLY와 커스텀 핀치 로직이 충돌한다.
+    TWO: null,
   };
   S.controls.maxPolarAngle = Math.PI * 0.48;
   S.controls.target.set(0, 0, 0);

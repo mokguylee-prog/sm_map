@@ -139,20 +139,87 @@ const activePointers = new Map();
 let pinchBaselineDist = 0;
 let lastPinchZoomTime = 0;
 let suppressClickUntil = 0;
-const PINCH_ZOOM_RATIO = 1.12; // 기준 대비 12% 벌어지거나 좁혀지면 1단계 줌
-const PINCH_ZOOM_COOLDOWN_MS = 180;
+let twoFingerGesture = null;
+const PINCH_ZOOM_RATIO = 1.08; // 기준 대비 8% 벌어지거나 좁혀지면 1단계 줌
+const PINCH_ZOOM_COOLDOWN_MS = 120;
+const TWO_FINGER_ROTATE_SPEED = 0.006;
+const TWO_FINGER_TILT_SPEED = 0.005;
 
 function pinchPointerDistance() {
   const pts = [...activePointers.values()];
   return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
 }
 
+function beginTwoFingerGesture() {
+  const ids = [...activePointers.keys()];
+  twoFingerGesture = { ids };
+  pinchBaselineDist = pinchPointerDistance();
+  updatePreviousTouchPositions();
+}
+
+function updatePreviousTouchPositions() {
+  for (const point of activePointers.values()) {
+    point.prevX = point.x;
+    point.prevY = point.y;
+  }
+}
+
+function movedDistance(point) {
+  return Math.hypot(point.x - point.startX, point.y - point.startY);
+}
+
+function applyTwoFingerOrbit() {
+  if (!S.camera || !S.controls || !twoFingerGesture) return;
+  const pts = twoFingerGesture.ids.map((id) => activePointers.get(id)).filter(Boolean);
+  if (pts.length !== 2) return;
+
+  // 더 적게 움직인 손가락을 기준점으로 보고, 많이 움직인 쪽의 변화량으로 회전/틸트한다.
+  // 두 손가락을 같이 움직이면 평균 이동량을 써서 어색한 끊김을 줄인다.
+  const firstMove = movedDistance(pts[0]);
+  const secondMove = movedDistance(pts[1]);
+  const mover = Math.abs(firstMove - secondMove) > 3
+    ? (firstMove > secondMove ? pts[0] : pts[1])
+    : {
+        x: (pts[0].x + pts[1].x) * 0.5,
+        y: (pts[0].y + pts[1].y) * 0.5,
+        prevX: (pts[0].prevX + pts[1].prevX) * 0.5,
+        prevY: (pts[0].prevY + pts[1].prevY) * 0.5,
+      };
+  const dx = mover.x - mover.prevX;
+  const dy = mover.y - mover.prevY;
+  if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return;
+
+  const target = S.controls.target;
+  const offset = S.camera.position.clone().sub(target);
+  const spherical = new THREE.Spherical().setFromVector3(offset);
+  spherical.theta -= dx * TWO_FINGER_ROTATE_SPEED;
+  spherical.phi = clamp(
+    spherical.phi + dy * TWO_FINGER_TILT_SPEED,
+    S.controls.minPolarAngle ?? 0.01,
+    S.controls.maxPolarAngle ?? Math.PI - 0.01,
+  );
+  spherical.makeSafe();
+
+  offset.setFromSpherical(spherical);
+  S.camera.position.copy(target).add(offset);
+  S.camera.lookAt(target);
+  S.controls.update();
+}
+
 export function onPinchPointerDown(event) {
   if (event.pointerType === "mouse") return;
   event.preventDefault();
-  activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  event.currentTarget?.setPointerCapture?.(event.pointerId);
+  activePointers.set(event.pointerId, {
+    x: event.clientX,
+    y: event.clientY,
+    startX: event.clientX,
+    startY: event.clientY,
+    prevX: event.clientX,
+    prevY: event.clientY,
+  });
   if (activePointers.size === 2) {
-    pinchBaselineDist = pinchPointerDistance();
+    beginTwoFingerGesture();
     suppressClickUntil = performance.now() + 500;
     S.mapPanPointerDown = false;
     S.mapPanDragging = false;
@@ -162,11 +229,23 @@ export function onPinchPointerDown(event) {
 export function onPinchPointerMove(event) {
   if (!activePointers.has(event.pointerId)) return;
   event.preventDefault();
-  activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-  if (activePointers.size !== 2 || pinchBaselineDist === 0) return;
+  const point = activePointers.get(event.pointerId);
+  point.x = event.clientX;
+  point.y = event.clientY;
+  if (activePointers.size !== 2 || pinchBaselineDist === 0) {
+    point.prevX = point.x;
+    point.prevY = point.y;
+    return;
+  }
+
+  applyTwoFingerOrbit();
+
   const now = performance.now();
-  if (now - lastPinchZoomTime < PINCH_ZOOM_COOLDOWN_MS) return;
   const dist = pinchPointerDistance();
+  if (now - lastPinchZoomTime < PINCH_ZOOM_COOLDOWN_MS) {
+    updatePreviousTouchPositions();
+    return;
+  }
   const ratio = dist / pinchBaselineDist;
   if (ratio >= PINCH_ZOOM_RATIO) {
     lastPinchZoomTime = now;
@@ -177,16 +256,24 @@ export function onPinchPointerMove(event) {
     pinchBaselineDist = dist;
     zoomTerrainBy(-1);
   }
+
+  updatePreviousTouchPositions();
 }
 
 export function onPinchPointerUp(event) {
+  event.currentTarget?.releasePointerCapture?.(event.pointerId);
   activePointers.delete(event.pointerId);
-  if (activePointers.size < 2) pinchBaselineDist = 0;
+  if (activePointers.size < 2) {
+    pinchBaselineDist = 0;
+    twoFingerGesture = null;
+    suppressClickUntil = performance.now() + 500;
+  }
 }
 
 export function resetPinchPointers() {
   activePointers.clear();
   pinchBaselineDist = 0;
+  twoFingerGesture = null;
 }
 
 export function zoomTerrainBy(delta) {
