@@ -15,6 +15,49 @@ import { tileOffsetFromOrigin, tileWorldSize } from "./positioning.js";
 const spriteByName = new Map();
 const ALWAYS_VISIBLE_LABELS = new Set(["대한민국", "에베레스트산"]);
 
+// 산 실제 표고: 화면 줌과 무관하게 AWS 고줌(z13) 타일에서 봉우리 표고를 읽어 둔다.
+// (현재 렌더 소스가 맵터호른이면 z13이 없으므로, 정확도를 위해 AWS를 직접 조회한다.)
+const AWS_TERRARIUM = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium";
+const PEAK_ZOOM = 13;
+const peakEleByName = new Map(); // name -> number(m) | "pending" | "failed"
+const clampPx = (v) => Math.min(255, Math.max(0, v));
+
+async function loadPeakElevation(place) {
+  if (peakEleByName.has(place.name)) return;
+  peakEleByName.set(place.name, "pending");
+  try {
+    const z = PEAK_ZOOM;
+    const tf = latLonToTileFloat(place.lat, place.lon, z);
+    const tx = Math.floor(tf.x);
+    const ty = Math.floor(tf.y);
+    const response = await fetch(`${AWS_TERRARIUM}/${z}/${tx}/${ty}.png`, { mode: "cors" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const bitmap = await createImageBitmap(await response.blob());
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(bitmap, 0, 0, 256, 256);
+    const { data } = ctx.getImageData(0, 0, 256, 256);
+    // 라벨 좌표 주변 작은 창에서 최댓값(봉우리) 추출.
+    const px = clampPx(Math.floor((tf.x - tx) * 256));
+    const py = clampPx(Math.floor((tf.y - ty) * 256));
+    const R = 5;
+    let max = -Infinity;
+    for (let dy = -R; dy <= R; dy += 1) {
+      for (let dx = -R; dx <= R; dx += 1) {
+        const i = (clampPx(py + dy) * 256 + clampPx(px + dx)) * 4;
+        const h = data[i] * 256 + data[i + 1] + data[i + 2] / 256 - 32768;
+        if (h > max) max = h;
+      }
+    }
+    peakEleByName.set(place.name, Math.round(max));
+    updatePlaceLabels(); // 정확한 표고로 라벨 텍스트 갱신
+  } catch {
+    peakEleByName.set(place.name, "failed");
+  }
+}
+
 function labelKey(place) {
   return `${place.type ?? "place"}:${place.country ?? ""}:${place.name}`;
 }
@@ -145,7 +188,14 @@ export function updatePlaceLabels() {
     }
 
     const h = S.currentGrid ? sampleHeightAtWorld(localX, localZ) : 0;
-    const sprite = getOrCreateSprite(place, h);
+    // 산 라벨 고도는 정확한 봉우리 표고(AWS z13)를 우선 사용하고, 도착 전엔 화면 샘플값으로 대체.
+    let elevationForLabel = h;
+    if (isMountainPlace(place)) {
+      loadPeakElevation(place);
+      const peak = peakEleByName.get(place.name);
+      if (typeof peak === "number") elevationForLabel = peak;
+    }
+    const sprite = getOrCreateSprite(place, elevationForLabel);
     sprite.position.set(x, Math.max(80, (h - waterLevel) * exaggeration + 150), worldZ);
     sprite.visible = true;
   });
