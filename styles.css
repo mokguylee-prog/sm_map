@@ -169,6 +169,7 @@ select {
 .view-toggles,
 .compass-stack,
 .touch-controls,
+.menu-toggle,
 .status-strip,
 .mobile-signature {
   transition: opacity 140ms ease-out, visibility 140ms ease-out;
@@ -178,6 +179,7 @@ body.ui-collapsed .hud,
 body.ui-collapsed .view-toggles,
 body.ui-collapsed .compass-stack,
 body.ui-collapsed .touch-controls,
+body.ui-collapsed .menu-toggle,
 body.ui-collapsed .status-strip,
 body.ui-collapsed .mobile-signature {
   visibility: hidden;
@@ -477,6 +479,56 @@ body.panel-open .menu-toggle::after {
   content: "›";
   left: auto;
   right: 9px;
+}
+
+.chrome-toggle {
+  display: block;
+  position: absolute;
+  right: 0;
+  top: 270px;
+  bottom: auto;
+  z-index: 33;
+  min-width: 78px;
+  min-height: 44px;
+  padding: 0 26px 0 11px;
+  border-color: rgba(255, 255, 255, 0.18);
+  border-radius: 8px 0 0 8px;
+  background: rgba(21, 27, 25, 0.86);
+  font-weight: 750;
+  backdrop-filter: blur(8px);
+  transform: translateX(0);
+  transition: transform 160ms ease-out, background 160ms ease-out;
+}
+
+.chrome-toggle::after {
+  content: "›";
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  transform: translateY(-50%);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.chrome-toggle span {
+  display: block;
+  white-space: nowrap;
+}
+
+body.ui-collapsed .chrome-toggle {
+  background: #20845b;
+  transform: translateX(calc(100% - 22px));
+}
+
+body.ui-collapsed .chrome-toggle::after {
+  content: "‹";
+  right: auto;
+  left: 7px;
+}
+
+body.ui-collapsed .chrome-toggle:hover,
+body.ui-collapsed .chrome-toggle:focus-visible {
+  transform: translateX(0);
 }
 
 .mobile-signature {
@@ -803,6 +855,12 @@ button:disabled {
     display: block;
     right: 0;
     top: 200px;
+    bottom: auto;
+  }
+
+  .chrome-toggle {
+    right: 0;
+    top: 252px;
     bottom: auto;
   }
 

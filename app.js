@@ -241,6 +241,7 @@ function buildPresets() {
 
 function bindEvents() {
   els.menuToggle.addEventListener("click", () => setPanelOpen(!document.body.classList.contains("panel-open")));
+  els.chromeToggle.addEventListener("click", () => setChromeCollapsed(!document.body.classList.contains("ui-collapsed")));
   els.panelClose.addEventListener("click", () => setPanelOpen(false));
   els.panelBackdrop.addEventListener("click", () => setPanelOpen(false));
 
@@ -359,10 +360,17 @@ function stopTilt() {
 
 function setPanelOpen(open) {
   document.body.classList.toggle("panel-open", open);
-  document.body.classList.toggle("ui-collapsed", !open);
   els.menuToggle.setAttribute("aria-expanded", String(open));
-  els.menuToggle.setAttribute("aria-label", open ? "전체 메뉴 접기" : "전체 메뉴 열기");
-  els.menuToggle.title = open ? "전체 메뉴 접기" : "전체 메뉴 열기";
+  els.menuToggle.setAttribute("aria-label", open ? "메뉴 닫기" : "메뉴 열기");
+  els.menuToggle.title = open ? "메뉴 닫기" : "메뉴 열기";
+}
+
+function setChromeCollapsed(collapsed) {
+  document.body.classList.toggle("ui-collapsed", collapsed);
+  els.chromeToggle.setAttribute("aria-pressed", String(collapsed));
+  els.chromeToggle.setAttribute("aria-label", collapsed ? "화면 오버레이 표시" : "화면 오버레이 숨기기");
+  els.chromeToggle.title = collapsed ? "화면 오버레이 표시" : "화면 오버레이 숨기기";
+  if (collapsed) setPanelOpen(false);
 }
 
 function onPointerDown(event) {

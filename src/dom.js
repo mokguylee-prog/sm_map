@@ -13,6 +13,7 @@ export const els = {
   compassNeedle: document.querySelector(".compass .needle"),
   tiltAngleReadout: document.querySelector("#tiltAngleReadout"),
   menuToggle: document.querySelector("#menuToggleButton"),
+  chromeToggle: document.querySelector("#chromeToggleButton"),
   panel: document.querySelector("#controlPanel"),
   panelBackdrop: document.querySelector("#panelBackdrop"),
   panelClose: document.querySelector("#panelCloseButton"),
