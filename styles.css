@@ -132,9 +132,9 @@ select {
   left: 18px;
   z-index: 14;
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   padding: 6px 8px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
@@ -146,7 +146,9 @@ select {
 .view-toggles label {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 74px;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
