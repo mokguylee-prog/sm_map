@@ -369,7 +369,9 @@ select {
   display: block;
   position: absolute;
   right: 18px;
-  bottom: 18px;
+  /* 우측면(나침반 아래)에 둔다. 하단에 두면 상태창과 겹쳐 가려짐. */
+  top: 218px;
+  bottom: auto;
   z-index: 13;
   min-width: 74px;
   min-height: 44px;
@@ -696,7 +698,8 @@ button:disabled {
   .menu-toggle {
     display: block;
     right: 10px;
-    bottom: 10px;
+    top: 200px;
+    bottom: auto;
   }
 
   .mobile-signature {
