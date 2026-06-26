@@ -35,6 +35,8 @@ export function setupThree() {
     // OrbitControls에 같이 맡기면 enableZoom=false 상태의 DOLLY와 커스텀 핀치 로직이 충돌한다.
     TWO: null,
   };
+  // PC 마우스 회전 방향을 터치 두 손가락 회전과 같은 방향으로 맞춘다(음수=반전).
+  S.controls.rotateSpeed = -1.0;
   S.controls.maxPolarAngle = Math.PI * 0.48;
   S.controls.target.set(0, 0, 0);
   S.renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
