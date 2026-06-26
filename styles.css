@@ -169,7 +169,6 @@ select {
 .view-toggles,
 .compass-stack,
 .touch-controls,
-.menu-toggle,
 .status-strip,
 .mobile-signature {
   transition: opacity 140ms ease-out, visibility 140ms ease-out;
@@ -179,7 +178,6 @@ body.ui-collapsed .hud,
 body.ui-collapsed .view-toggles,
 body.ui-collapsed .compass-stack,
 body.ui-collapsed .touch-controls,
-body.ui-collapsed .menu-toggle,
 body.ui-collapsed .status-strip,
 body.ui-collapsed .mobile-signature {
   visibility: hidden;
@@ -434,30 +432,19 @@ body.ui-collapsed .mobile-signature {
 .menu-toggle {
   display: block;
   position: absolute;
-  right: 0;
+  right: 18px;
   top: 218px;
   bottom: auto;
   z-index: 32;
-  min-width: 78px;
+  min-width: 74px;
   min-height: 44px;
-  padding: 0 26px 0 11px;
+  padding: 0 14px;
   border-color: rgba(255, 255, 255, 0.18);
-  border-radius: 8px 0 0 8px;
+  border-radius: 8px;
   background: rgba(21, 27, 25, 0.86);
   font-weight: 750;
   backdrop-filter: blur(8px);
-  transform: translateX(calc(100% - 22px));
-  transition: transform 160ms ease-out, background 160ms ease-out;
-}
-
-.menu-toggle::after {
-  content: "‹";
-  position: absolute;
-  top: 50%;
-  left: 7px;
-  transform: translateY(-50%);
-  font-size: 18px;
-  line-height: 1;
+  transition: background 160ms ease-out;
 }
 
 .menu-toggle span {
@@ -465,20 +452,8 @@ body.ui-collapsed .mobile-signature {
   white-space: nowrap;
 }
 
-.menu-toggle:hover,
-.menu-toggle:focus-visible,
-body.panel-open .menu-toggle {
-  transform: translateX(0);
-}
-
 body.panel-open .menu-toggle {
   background: #20845b;
-}
-
-body.panel-open .menu-toggle::after {
-  content: "›";
-  left: auto;
-  right: 9px;
 }
 
 .chrome-toggle {
@@ -853,7 +828,7 @@ button:disabled {
 
   .menu-toggle {
     display: block;
-    right: 0;
+    right: 10px;
     top: 200px;
     bottom: auto;
   }
