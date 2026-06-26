@@ -85,7 +85,6 @@ async function init() {
   buildRoots();
   buildPresets();
   bindEvents();
-  setPanelOpen(false);
 
   updateNetReadout();
   updateCacheStatus();
