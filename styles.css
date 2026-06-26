@@ -39,7 +39,10 @@ select {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   width: 100vw;
-  height: 100vh;
+  /* 실제 보이는 창 높이(JS가 --app-h=window.innerHeight 설정). 100vh는 전체화면에서
+     실제 표시 영역보다 커져 하단이 잘릴 수 있어 폴백으로만 둔다. */
+  height: var(--app-h, 100dvh);
+  min-height: var(--app-h, 100dvh);
 }
 
 .viewport {
@@ -103,8 +106,7 @@ select {
   left: 16px;
   /* 오른쪽 확대/축소·해상도 컨트롤 영역(약 62px)을 침범하지 않도록 여백을 둔다. */
   right: 78px;
-  /* 전체화면에서 Windows 작업줄(사용자가 키운 경우 포함)에 가려지지 않도록 바닥에서 충분히 띄운다. */
-  bottom: 64px;
+  bottom: 18px;
   /* 라벨 레이어(z 4)·터치 컨트롤(z 12) 등 위에 항상 보이도록. */
   z-index: 14;
   display: flex;
@@ -647,8 +649,8 @@ button:disabled {
   .app-shell {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;
-    height: 100dvh;
-    min-height: 100dvh;
+    height: var(--app-h, 100dvh);
+    min-height: var(--app-h, 100dvh);
   }
 
   .viewport {

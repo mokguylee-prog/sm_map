@@ -144,10 +144,13 @@ function setupScene() {
   scene.add(globeGroup);
 
   window.addEventListener("resize", resize);
+  document.addEventListener("fullscreenchange", resize);
   resize();
 }
 
 function resize() {
+  // 레이아웃 높이를 실제 보이는 창 높이로 고정(100vh는 전체화면에서 표시영역보다 커질 수 있음).
+  document.documentElement.style.setProperty("--app-h", `${window.innerHeight}px`);
   const rect = els.canvas.getBoundingClientRect();
   const width = Math.max(1, rect.width);
   const height = Math.max(1, rect.height);
