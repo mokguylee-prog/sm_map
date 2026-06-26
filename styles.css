@@ -165,6 +165,26 @@ select {
   cursor: pointer;
 }
 
+.hud,
+.view-toggles,
+.compass-stack,
+.touch-controls,
+.status-strip,
+.mobile-signature {
+  transition: opacity 140ms ease-out, visibility 140ms ease-out;
+}
+
+body.ui-collapsed .hud,
+body.ui-collapsed .view-toggles,
+body.ui-collapsed .compass-stack,
+body.ui-collapsed .touch-controls,
+body.ui-collapsed .status-strip,
+body.ui-collapsed .mobile-signature {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .hud {
   position: absolute;
   top: 18px;

@@ -85,6 +85,7 @@ async function init() {
   buildRoots();
   buildPresets();
   bindEvents();
+  setPanelOpen(false);
 
   updateNetReadout();
   updateCacheStatus();
@@ -359,9 +360,10 @@ function stopTilt() {
 
 function setPanelOpen(open) {
   document.body.classList.toggle("panel-open", open);
+  document.body.classList.toggle("ui-collapsed", !open);
   els.menuToggle.setAttribute("aria-expanded", String(open));
-  els.menuToggle.setAttribute("aria-label", open ? "메뉴 닫기" : "메뉴 열기");
-  els.menuToggle.title = open ? "메뉴 닫기" : "메뉴 열기";
+  els.menuToggle.setAttribute("aria-label", open ? "전체 메뉴 접기" : "전체 메뉴 열기");
+  els.menuToggle.title = open ? "전체 메뉴 접기" : "전체 메뉴 열기";
 }
 
 function onPointerDown(event) {
