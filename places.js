@@ -73,5 +73,6 @@ export const PLACE_LABELS = [
   ...WORLD_DETAILED_CITY_LABELS,
   ...KOREA_CITY_LABELS,
   ...REGIONAL_PLACE_LABELS,
-  ...WORLD_MOUNTAIN_LABELS,
+  // 세계 산 라벨은 고도 표시를 위해 type을 부여(영문 이름 봉우리도 산으로 인식되게).
+  ...WORLD_MOUNTAIN_LABELS.map((m) => ({ ...m, type: m.type ?? "mountain" })),
 ];

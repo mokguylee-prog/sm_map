@@ -34,18 +34,48 @@ export function buildPlaceLabels() {
   S.scene.add(S.placeLabelGroup);
 }
 
-function getOrCreateSprite(place) {
+function disposeSprite(sprite) {
+  S.placeLabelGroup.remove(sprite);
+  sprite.material.map?.dispose();
+  sprite.material.dispose();
+}
+
+// '산' 접미사를 쓰지만 산이 아닌 도시들(고도 표시에서 제외).
+const CITY_NAMES_WITH_MOUNTAIN_SUFFIX = new Set(["부산", "울산", "마산", "군산", "익산", "논산", "아산", "오산"]);
+
+// 산 판별: type이 mountain이면 산. 다른 type(수도/도시/산맥 등)은 산 아님.
+// type이 없는 지역 라벨만 이름 접미사(산/봉/령/악)로 판정하되, 산-접미 도시는 제외한다.
+function isMountainPlace(place) {
+  if (place.type === "mountain") return true;
+  if (place.type) return false;
+  if (CITY_NAMES_WITH_MOUNTAIN_SUFFIX.has(place.name)) return false;
+  return /(산|봉|령|악)$/.test(place.name);
+}
+
+function getOrCreateSprite(place, elevationM) {
   const key = labelKey(place);
+  const isMountain = isMountainPlace(place);
+  // 산은 이름 옆에 지형에서 읽은 고도를 붙인다(해수면 이하/미로딩이면 생략).
+  const eleText = isMountain && Number.isFinite(elevationM) && elevationM > 0
+    ? ` ${Math.round(elevationM).toLocaleString()}m`
+    : "";
+
   let sprite = spriteByName.get(key);
-  if (sprite) return sprite;
+  if (sprite) {
+    if (!isMountain || sprite.userData.eleText === eleText) return sprite;
+    // 산: 표시 고도가 바뀌면(정밀화 등) 텍스트 갱신을 위해 다시 만든다.
+    disposeSprite(sprite);
+    spriteByName.delete(key);
+  }
+
   const isCapital = place.type === "capital";
   const isMajorCity = place.type === "majorCity";
   const isKoreaCity = place.type === "koreaCity";
   const isMountainRange = place.type === "mountainRange";
-  sprite = makeTextSprite(place.name, "#ffffff", {
-    width: isCapital ? 560 : (isMountainRange ? 512 : 384),
+  sprite = makeTextSprite(place.name + eleText, "#ffffff", {
+    width: isCapital ? 560 : (isMountainRange ? 512 : (isMountain ? 560 : 384)),
     height: 128,
-    fontSize: isCapital ? 62 : (isMountainRange ? 42 : ((isMajorCity || isKoreaCity) ? 44 : (place.name.length > 4 ? 46 : 56))),
+    fontSize: isCapital ? 62 : (isMountainRange ? 42 : (isMountain ? 44 : ((isMajorCity || isKoreaCity) ? 44 : (place.name.length > 4 ? 46 : 56)))),
     bg: isCapital
       ? "rgba(12, 104, 61, 0.9)"
       : (isMountainRange
@@ -62,8 +92,9 @@ function getOrCreateSprite(place) {
           : (isKoreaCity ? "rgba(120, 211, 255, 0.72)" : "rgba(240, 199, 102, 0.5)"))),
   });
   sprite.userData.place = place;
+  sprite.userData.eleText = eleText;
   sprite.userData.baseScale = {
-    x: isCapital ? 520 : (isMountainRange ? 360 : ((isMajorCity || isKoreaCity) ? 290 : 260)),
+    x: isCapital ? 520 : (isMountainRange ? 360 : (isMountain ? 400 : ((isMajorCity || isKoreaCity) ? 290 : 260))),
     y: isCapital ? 128 : 86,
   };
   sprite.scale.set(
@@ -113,8 +144,8 @@ export function updatePlaceLabels() {
       return;
     }
 
-    const sprite = getOrCreateSprite(place);
     const h = S.currentGrid ? sampleHeightAtWorld(localX, localZ) : 0;
+    const sprite = getOrCreateSprite(place, h);
     sprite.position.set(x, Math.max(80, (h - waterLevel) * exaggeration + 150), worldZ);
     sprite.visible = true;
   });
