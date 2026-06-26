@@ -37,6 +37,8 @@ export function setupThree() {
   };
   // PC 마우스 회전 방향을 터치 두 손가락 회전과 같은 방향으로 맞춘다(음수=반전).
   S.controls.rotateSpeed = -1.0;
+  // 패닝을 지면 평면(X/Z)에서 수행 → 상하 드래그가 (공중으로 들리지 않고) 남북 이동이 된다.
+  S.controls.screenSpacePanning = false;
   S.controls.maxPolarAngle = Math.PI * 0.48;
   S.controls.target.set(0, 0, 0);
   S.renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
