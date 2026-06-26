@@ -240,7 +240,7 @@ function buildPresets() {
 }
 
 function bindEvents() {
-  els.menuToggle.addEventListener("click", () => setPanelOpen(true));
+  els.menuToggle.addEventListener("click", () => setPanelOpen(!document.body.classList.contains("panel-open")));
   els.panelClose.addEventListener("click", () => setPanelOpen(false));
   els.panelBackdrop.addEventListener("click", () => setPanelOpen(false));
 
@@ -360,6 +360,8 @@ function stopTilt() {
 function setPanelOpen(open) {
   document.body.classList.toggle("panel-open", open);
   els.menuToggle.setAttribute("aria-expanded", String(open));
+  els.menuToggle.setAttribute("aria-label", open ? "메뉴 닫기" : "메뉴 열기");
+  els.menuToggle.title = open ? "메뉴 닫기" : "메뉴 열기";
 }
 
 function onPointerDown(event) {

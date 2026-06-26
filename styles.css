@@ -132,10 +132,9 @@ select {
   left: 18px;
   z-index: 14;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-width: 76px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   padding: 6px 8px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
@@ -147,9 +146,7 @@ select {
 .view-toggles label {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
+  gap: 4px;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
@@ -415,17 +412,51 @@ select {
 .menu-toggle {
   display: block;
   position: absolute;
-  right: 18px;
-  /* 우측면(나침반 아래)에 둔다. 하단에 두면 상태창과 겹쳐 가려짐. */
+  right: 0;
   top: 218px;
   bottom: auto;
-  z-index: 13;
-  min-width: 74px;
+  z-index: 32;
+  min-width: 78px;
   min-height: 44px;
+  padding: 0 26px 0 11px;
   border-color: rgba(255, 255, 255, 0.18);
+  border-radius: 8px 0 0 8px;
   background: rgba(21, 27, 25, 0.86);
   font-weight: 750;
   backdrop-filter: blur(8px);
+  transform: translateX(calc(100% - 22px));
+  transition: transform 160ms ease-out, background 160ms ease-out;
+}
+
+.menu-toggle::after {
+  content: "‹";
+  position: absolute;
+  top: 50%;
+  left: 7px;
+  transform: translateY(-50%);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.menu-toggle span {
+  display: block;
+  white-space: nowrap;
+}
+
+.menu-toggle:hover,
+.menu-toggle:focus-visible,
+body.panel-open .menu-toggle {
+  transform: translateX(0);
+}
+
+body.panel-open .menu-toggle {
+  background: #20845b;
+}
+
+body.panel-open .menu-toggle::after {
+  content: "›";
+  left: auto;
+  right: 9px;
 }
 
 .mobile-signature {
@@ -750,7 +781,7 @@ button:disabled {
 
   .menu-toggle {
     display: block;
-    right: 10px;
+    right: 0;
     top: 200px;
     bottom: auto;
   }
