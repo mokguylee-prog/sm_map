@@ -183,7 +183,7 @@ function applyTwoFingerOrbit() {
   const target = S.controls.target;
   const offset = S.camera.position.clone().sub(target);
   const spherical = new THREE.Spherical().setFromVector3(offset);
-  spherical.theta -= dx * TWO_FINGER_ROTATE_SPEED;
+  spherical.theta += dx * TWO_FINGER_ROTATE_SPEED;
   spherical.makeSafe();
 
   offset.setFromSpherical(spherical);
