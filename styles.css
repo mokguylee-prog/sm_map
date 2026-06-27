@@ -514,8 +514,9 @@ body.panel-open .menu-toggle {
 .chrome-toggle {
   display: block;
   position: fixed;
-  left: 18px;
-  top: 130px;
+  left: auto;
+  top: 18px;
+  right: 148px;
   right: auto;
   bottom: auto;
   z-index: 33;
@@ -550,6 +551,8 @@ body.panel-open .menu-toggle {
 }
 
 body.ui-collapsed .chrome-toggle {
+  left: 18px;
+  right: auto;
   background: #20845b;
   transform: translateX(calc(-100% + 22px));
 }
@@ -919,10 +922,15 @@ button:disabled {
   }
 
   .chrome-toggle {
-    left: 10px;
-    top: 168px;
-    right: auto;
+    left: auto;
+    top: 112px;
+    right: 104px;
     bottom: auto;
+  }
+
+  body.ui-collapsed .chrome-toggle {
+    left: 10px;
+    right: auto;
   }
 
   .mobile-signature {
