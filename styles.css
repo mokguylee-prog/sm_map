@@ -526,7 +526,7 @@ body.panel-open .menu-toggle {
   border-radius: 8px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 48%),
-    rgba(21, 27, 25, 0.86);
+    rgba(32, 132, 91, 0.94);
   font-weight: 750;
   backdrop-filter: blur(8px);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.12);
@@ -551,7 +551,9 @@ body.panel-open .menu-toggle {
 }
 
 body.ui-collapsed .chrome-toggle {
-  background: #20845b;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 48%),
+    rgba(32, 132, 91, 0.94);
   transform: translateY(calc(-100% + 22px));
 }
 

@@ -88,6 +88,7 @@ async function init() {
   buildRoots();
   buildPresets();
   bindEvents();
+  setChromeCollapsed(true);
 
   updateNetReadout();
   updateCacheStatus();
