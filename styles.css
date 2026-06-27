@@ -173,6 +173,7 @@ select {
 .view-toggles,
 .compass-stack,
 .touch-controls,
+.menu-toggle,
 .status-strip,
 .mobile-signature {
   transition: opacity 140ms ease-out, visibility 140ms ease-out;
@@ -182,6 +183,7 @@ body.ui-collapsed .hud,
 body.ui-collapsed .view-toggles,
 body.ui-collapsed .compass-stack,
 body.ui-collapsed .touch-controls,
+body.ui-collapsed .menu-toggle,
 body.ui-collapsed .status-strip,
 body.ui-collapsed .mobile-signature {
   visibility: hidden;
@@ -519,7 +521,7 @@ body.panel-open .menu-toggle {
   z-index: 33;
   min-width: 74px;
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 18px 0 14px;
   border-color: rgba(255, 255, 255, 0.18);
   border-radius: 8px;
   background:
@@ -549,12 +551,19 @@ body.panel-open .menu-toggle {
 
 body.ui-collapsed .chrome-toggle {
   background: #20845b;
+  transform: translateX(calc(-100% + 22px));
 }
 
 body.ui-collapsed .chrome-toggle::after {
-  content: "";
+  content: "›";
   right: auto;
-  left: 7px;
+  left: auto;
+  right: 7px;
+}
+
+body.ui-collapsed .chrome-toggle:hover,
+body.ui-collapsed .chrome-toggle:focus-visible {
+  transform: translateX(0);
 }
 
 .mobile-signature {
