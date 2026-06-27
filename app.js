@@ -42,11 +42,14 @@ let frameCount = 0;
 
 const roots = [];
 const pressedKeys = new Set();
+const touchPointers = new Map();
 const frustum = new THREE.Frustum();
 const projScreenMatrix = new THREE.Matrix4();
 const raycaster = new THREE.Raycaster();
 const tmpDir = new THREE.Vector3();
 const NORTH = new THREE.Vector3(0, 1, 0);
+let lastPinchDistance = 0;
+let pinchMoved = false;
 
 onNetStatsChange(() => {
   netDirty = true;
@@ -324,7 +327,9 @@ function bindEvents() {
     zoomByAltitude(event.deltaY > 0 ? 1.08 : 1 / 1.08, { x: event.clientX, y: event.clientY });
   }, { passive: false });
   renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  renderer.domElement.addEventListener("pointermove", onPointerMove);
   renderer.domElement.addEventListener("pointerup", onPointerUp);
+  renderer.domElement.addEventListener("pointercancel", onPointerCancel);
   renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
 
   window.addEventListener("keydown", (event) => {
@@ -378,11 +383,44 @@ function setChromeCollapsed(collapsed) {
 }
 
 function onPointerDown(event) {
+  if (event.pointerType === "touch") trackTouchPointerDown(event);
   if (event.button !== 0) return;
   pointerDownPos = { x: event.clientX, y: event.clientY };
 }
 
+function onPointerMove(event) {
+  if (event.pointerType !== "touch" || !touchPointers.has(event.pointerId)) return;
+  touchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (touchPointers.size !== 2) return;
+
+  event.preventDefault();
+  const points = [...touchPointers.values()];
+  const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+  if (!lastPinchDistance) {
+    lastPinchDistance = dist;
+    return;
+  }
+
+  const ratio = dist / lastPinchDistance;
+  if (Math.abs(1 - ratio) < 0.015) return;
+
+  const center = {
+    x: (points[0].x + points[1].x) / 2,
+    y: (points[0].y + points[1].y) / 2,
+  };
+  zoomByAltitude(THREE.MathUtils.clamp(1 / ratio, 0.86, 1.16), center);
+  lastPinchDistance = dist;
+  pinchMoved = true;
+  pointerDownPos = null;
+}
+
 function onPointerUp(event) {
+  const wasPinch = event.pointerType === "touch" && trackTouchPointerUp(event);
+  if (wasPinch || pinchMoved) {
+    pointerDownPos = null;
+    if (touchPointers.size === 0) pinchMoved = false;
+    return;
+  }
   if (!pointerDownPos) return;
   const moved = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
   pointerDownPos = null;
@@ -397,6 +435,29 @@ function onPointerUp(event) {
   els.lon.value = lon.toFixed(6);
   flyTo(lat, lon);
   saveState();
+}
+
+function onPointerCancel(event) {
+  if (event.pointerType === "touch") trackTouchPointerUp(event);
+  pointerDownPos = null;
+}
+
+function trackTouchPointerDown(event) {
+  renderer.domElement.setPointerCapture?.(event.pointerId);
+  touchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (touchPointers.size === 2) {
+    const points = [...touchPointers.values()];
+    lastPinchDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+    pinchMoved = false;
+  }
+}
+
+function trackTouchPointerUp(event) {
+  const wasPinch = touchPointers.size >= 2 || pinchMoved;
+  renderer.domElement.releasePointerCapture?.(event.pointerId);
+  touchPointers.delete(event.pointerId);
+  if (touchPointers.size < 2) lastPinchDistance = 0;
+  return wasPinch;
 }
 
 function pickGlobePointAt(clientX, clientY) {
