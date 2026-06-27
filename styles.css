@@ -516,8 +516,7 @@ body.panel-open .menu-toggle {
   position: fixed;
   left: auto;
   top: 18px;
-  right: 148px;
-  right: auto;
+  right: clamp(108px, 14vw, 148px);
   bottom: auto;
   z-index: 33;
   min-width: 74px;
@@ -949,7 +948,7 @@ button:disabled {
 
   .chrome-toggle {
     left: auto;
-    top: 112px;
+    top: 10px;
     right: 104px;
     bottom: auto;
   }
