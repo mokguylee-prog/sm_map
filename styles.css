@@ -228,19 +228,20 @@ body.ui-collapsed .mobile-signature {
 
 .compass-stack {
   position: fixed;
-  top: 74px;
+  top: 18px;
   right: 18px;
   z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  width: 112px;
 }
 
 .tilt-button {
-  width: 36px;
-  height: 34px;
-  min-height: 34px;
+  width: 44px;
+  height: 30px;
+  min-height: 30px;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
@@ -263,17 +264,9 @@ body.ui-collapsed .mobile-signature {
     rgba(35, 46, 43, 0.9);
 }
 
-.tilt-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 112px;
-}
-
 .tilt-readout {
-  min-width: 34px;
-  padding: 8px 6px;
+  min-width: 48px;
+  padding: 7px 9px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
   background:
@@ -461,9 +454,9 @@ body.ui-collapsed .mobile-signature {
 .menu-toggle {
   display: block;
   position: fixed;
-  top: 18px;
+  top: auto;
   right: 18px;
-  bottom: auto;
+  bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 32;
   width: 44px;
   min-width: 0;
@@ -890,24 +883,20 @@ button:disabled {
   }
 
   .compass-stack {
-    top: 64px;
+    top: 10px;
     right: 10px;
-  }
-
-  .tilt-controls {
     width: 82px;
-    gap: 4px;
   }
 
   .tilt-button {
-    width: 27px;
+    width: 38px;
     height: 30px;
     min-height: 30px;
     font-size: 13px;
   }
 
   .tilt-readout {
-    min-width: 28px;
+    min-width: 42px;
     padding: 7px 4px;
     font-size: 11px;
   }
@@ -921,9 +910,9 @@ button:disabled {
 
   .menu-toggle {
     display: block;
-    top: 10px;
+    top: auto;
     right: 10px;
-    bottom: auto;
+    bottom: max(10px, env(safe-area-inset-bottom));
   }
 
   .chrome-toggle {
