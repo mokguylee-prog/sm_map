@@ -513,7 +513,7 @@ body.panel-open .menu-toggle {
 
 .chrome-toggle {
   display: block;
-  position: absolute;
+  position: fixed;
   left: 18px;
   top: 130px;
   right: auto;
@@ -556,14 +556,8 @@ body.ui-collapsed .chrome-toggle {
 
 body.ui-collapsed .chrome-toggle::after {
   content: "›";
-  right: auto;
   left: auto;
   right: 7px;
-}
-
-body.ui-collapsed .chrome-toggle:hover,
-body.ui-collapsed .chrome-toggle:focus-visible {
-  transform: translateX(0);
 }
 
 .mobile-signature {
