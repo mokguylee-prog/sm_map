@@ -547,20 +547,46 @@ body.panel-open .menu-toggle {
 
 .chrome-toggle span {
   display: block;
+  position: relative;
   white-space: nowrap;
 }
 
 body.ui-collapsed .chrome-toggle {
-  left: 18px;
-  right: auto;
   background: #20845b;
-  transform: translateX(calc(-100% + 22px));
+  transform: translateY(calc(-100% + 22px));
+}
+
+body.ui-collapsed .chrome-toggle span {
+  width: 20px;
+  height: 2px;
+  margin: 0 auto;
+  color: transparent;
+  border-radius: 999px;
+  background: currentColor;
+  background-color: var(--text);
+}
+
+body.ui-collapsed .chrome-toggle span::before,
+body.ui-collapsed .chrome-toggle span::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--text);
+}
+
+body.ui-collapsed .chrome-toggle span::before {
+  top: -6px;
+}
+
+body.ui-collapsed .chrome-toggle span::after {
+  top: 6px;
 }
 
 body.ui-collapsed .chrome-toggle::after {
-  content: "›";
-  left: auto;
-  right: 7px;
+  content: "";
 }
 
 .mobile-signature {
@@ -926,11 +952,6 @@ button:disabled {
     top: 112px;
     right: 104px;
     bottom: auto;
-  }
-
-  body.ui-collapsed .chrome-toggle {
-    left: 10px;
-    right: auto;
   }
 
   .mobile-signature {
