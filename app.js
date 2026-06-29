@@ -24,7 +24,7 @@ const GLOBE_STATE_MARKER = "terrain-globe-state-active-v1";
 const TILT_MIN = -Math.PI / 2;
 const TILT_MAX = Math.PI / 2;
 const TILT_STEP = THREE.MathUtils.degToRad(3);
-const APP_VERSION = "v2026-06-29 14:13 KST";
+const APP_VERSION = "v2026-06-29 14:22 KST";
 
 let renderer;
 let labelRenderer;
@@ -124,7 +124,7 @@ function setupScene() {
   controls.dampingFactor = 0.08;
   controls.enableZoom = false;
   controls.rotateSpeed = 0.22;
-  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: null };
   controls.minDistance = EARTH_RADIUS * 1.0008;
   controls.maxDistance = EARTH_RADIUS * 6;
 
