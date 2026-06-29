@@ -122,6 +122,14 @@ select {
   backdrop-filter: blur(8px);
 }
 
+#statusText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#appVersion,
 #netReadout {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;

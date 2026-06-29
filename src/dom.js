@@ -3,6 +3,7 @@
 export const els = {
   canvas: document.querySelector("#terrainCanvas"),
   status: document.querySelector("#statusText"),
+  version: document.querySelector("#appVersion"),
   net: document.querySelector("#netReadout"),
   height: document.querySelector("#heightReadout"),
   tileHud: document.querySelector("#tileHud"),

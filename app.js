@@ -24,6 +24,7 @@ const GLOBE_STATE_MARKER = "terrain-globe-state-active-v1";
 const TILT_MIN = -Math.PI / 2;
 const TILT_MAX = Math.PI / 2;
 const TILT_STEP = THREE.MathUtils.degToRad(3);
+const APP_VERSION = "v2026-06-29 14:13 KST";
 
 let renderer;
 let labelRenderer;
@@ -61,6 +62,7 @@ onGlobeMeshChange(() => {
 
 async function init() {
   document.body.dataset.appReady = "true";
+  if (els.version) els.version.textContent = APP_VERSION;
   const saved = loadState();
   const hasGlobeState = localStorage.getItem(GLOBE_STATE_MARKER) === "true";
   const initial = hasGlobeState && saved
@@ -471,23 +473,83 @@ function pickGlobePointAt(clientX, clientY) {
   return raycaster.intersectObjects([baseMesh, ...globeGroup.children], false)[0] ?? null;
 }
 
+function clientToNdc(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  return new THREE.Vector2(
+    ((clientX - rect.left) / rect.width) * 2 - 1,
+    -((clientY - rect.top) / rect.height) * 2 + 1,
+  );
+}
+
+function applyCameraDirection(dir, distance, applyTilt = true) {
+  camera.position.copy(dir).multiplyScalar(distance);
+  controls.target.set(0, 0, 0);
+  controls.update();
+  if (applyTilt && Math.abs(viewTilt) > 0.001) camera.rotateX(-viewTilt);
+  camera.updateMatrixWorld();
+}
+
+function projectToNdc(point, dir, distance) {
+  applyCameraDirection(dir, distance);
+  return point.clone().project(camera);
+}
+
+function cameraAxesForDirection(dir) {
+  const forward = dir.clone().negate().normalize();
+  const right = new THREE.Vector3().crossVectors(forward, camera.up);
+  if (right.lengthSq() < 1e-8) right.set(1, 0, 0);
+  else right.normalize();
+  const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+  return { right, up };
+}
+
+function solveAnchoredCameraDirection(point, targetNdc, distance, startDir) {
+  const dir = startDir.clone().normalize();
+  const eps = 0.001;
+
+  for (let i = 0; i < 6; i += 1) {
+    const p = projectToNdc(point, dir, distance);
+    const errorX = p.x - targetNdc.x;
+    const errorY = p.y - targetNdc.y;
+    if (Math.hypot(errorX, errorY) < 0.001) break;
+
+    const { right, up } = cameraAxesForDirection(dir);
+    const dirX = dir.clone().applyAxisAngle(up, eps).normalize();
+    const dirY = dir.clone().applyAxisAngle(right, eps).normalize();
+    const px = projectToNdc(point, dirX, distance);
+    const py = projectToNdc(point, dirY, distance);
+
+    const a = (px.x - p.x) / eps;
+    const b = (py.x - p.x) / eps;
+    const c = (px.y - p.y) / eps;
+    const d = (py.y - p.y) / eps;
+    const det = a * d - b * c;
+    if (Math.abs(det) < 1e-6) break;
+
+    const dx = THREE.MathUtils.clamp((-errorX * d + b * errorY) / det, -0.08, 0.08);
+    const dy = THREE.MathUtils.clamp((c * errorX - a * errorY) / det, -0.08, 0.08);
+    dir.applyAxisAngle(up, dx).applyAxisAngle(right, dy).normalize();
+  }
+
+  return dir;
+}
+
 function zoomByAltitude(factor, anchor) {
   flyDest = null;
   const alt = camera.position.length() - EARTH_RADIUS;
   const nextAlt = THREE.MathUtils.clamp(alt * factor, controls.minDistance - EARTH_RADIUS, controls.maxDistance - EARTH_RADIUS);
   const currentDir = camera.position.clone().normalize();
-  const hit = anchor ? pickGlobePointAt(anchor.x, anchor.y) : null;
-  if (hit) {
-    const anchorDir = hit.point.clone().normalize();
-    const tangent = anchorDir.sub(currentDir.clone().multiplyScalar(anchorDir.dot(currentDir)));
-    if (tangent.lengthSq() > 1e-8) {
-      tangent.normalize();
-      const strength = THREE.MathUtils.clamp(Math.abs(Math.log(factor)) * 0.22, 0, 0.16);
-      currentDir.addScaledVector(tangent, factor < 1 ? strength : -strength).normalize();
+  const nextDistance = EARTH_RADIUS + nextAlt;
+  let nextDir = currentDir;
+
+  if (anchor) {
+    const hit = pickGlobePointAt(anchor.x, anchor.y);
+    if (hit) {
+      nextDir = solveAnchoredCameraDirection(hit.point.clone(), clientToNdc(anchor.x, anchor.y), nextDistance, currentDir);
     }
   }
-  camera.position.copy(currentDir.multiplyScalar(EARTH_RADIUS + nextAlt));
-  controls.update();
+
+  applyCameraDirection(nextDir, nextDistance);
 }
 
 function applyKeyRotation() {
