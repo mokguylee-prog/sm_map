@@ -24,7 +24,8 @@ const GLOBE_STATE_MARKER = "terrain-globe-state-active-v1";
 const TILT_MIN = -Math.PI / 2;
 const TILT_MAX = Math.PI / 2;
 const TILT_STEP = THREE.MathUtils.degToRad(3);
-const APP_VERSION = "v2026-06-29 14:22 KST";
+const TOUCH_ROTATE_SPEED_SCALE = 0.5;
+const APP_VERSION = "v2026-06-29 14:25 KST";
 
 let renderer;
 let labelRenderer;
@@ -123,7 +124,7 @@ function setupScene() {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enableZoom = false;
-  controls.rotateSpeed = 0.22;
+  controls.rotateSpeed = 0.12;
   controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: null };
   controls.minDistance = EARTH_RADIUS * 1.0008;
   controls.maxDistance = EARTH_RADIUS * 6;
@@ -657,7 +658,9 @@ function animate() {
   viewTilt = clamp(viewTilt, TILT_MIN, TILT_MAX);
   if (Math.abs(viewTilt) > 0.001) camera.rotateX(-viewTilt);
 
-  controls.rotateSpeed = THREE.MathUtils.clamp((alt / distance) * 0.36, 0.02, 0.24);
+  const rotateSpeed = THREE.MathUtils.clamp((alt / distance) * 0.36, 0.02, 0.24);
+  const isTouchViewport = window.matchMedia?.("(pointer: coarse)")?.matches;
+  controls.rotateSpeed = rotateSpeed * (isTouchViewport ? TOUCH_ROTATE_SPEED_SCALE : 1);
   camera.near = Math.max(2, alt * 0.03);
   camera.far = distance + EARTH_RADIUS * 1.5;
   camera.updateProjectionMatrix();
